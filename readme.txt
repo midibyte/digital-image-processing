@@ -61,7 +61,25 @@ colorBinarize TColor CR CG CB
 
 PROJECT 2
 
+Histogram image creation added
 
+Histgram stretching
+
+Histogram stretching with thresholding
+
+Histogram stretching on one channel of RGB
+
+Histogram stretching on all RGB
+
+RGB to HSI
+
+HSI to RGB 
+
+Histogram stretching on I-component of HSI 
+	display I as a grey level image 
+	convert back to RGB and display color after stretched I channel
+
+Histogram stretching on H and S and HSI separately 
 
 *** PARAMETERS FILE ***
 

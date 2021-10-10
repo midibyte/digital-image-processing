@@ -11,6 +11,7 @@ struct ROI
 	// hold the size and location of the ROI
 	unsigned int Sx, Sy, X, Y;
 	char histogramName[1024];
+	bool isModified = false;
 	unsigned int idxROI;
 };
 
@@ -72,7 +73,33 @@ class utility
 		static RGB_pixel HSI_to_RGB(HSI_pixel in);
 
 		static void histo_stretch(image &src, image &tgt, int a1, int b1, ROI ROI_parameters);
-		static void thresh_histo_stretch(image src, image tgt, int T, int a1, int b1, int a2, int b2, ROI ROI_parameters);
+		static void thresh_histo_stretch(image &src, image &tgt,
+										int T, int a1, int b1, 
+										int a2, int b2, 
+										ROI ROI_parameters);
+
+		// color funcitons
+
+		static void histo_stretch_RGB_single(image &src, image &tgt, 
+											int a1, int b1, 
+											int channel, ROI ROI_parameters);
+		static void histo_stretch_RGB_multi(image &src, image &tgt, 
+											int aR, int bR,
+											int aG, int bG, 
+											int aB, int bB, 
+											ROI ROI_parameters);
+											
+		static void histo_stretch_I(image &src, image &tgt, 
+									int a1, int b1, 
+									ROI ROI_parameters);
+
+		// set a b to min max to ignore channel
+		static void histo_stretch_HSI(image &src, image &tgt, 
+									int aH, int bH,
+									int aS, int bS,
+									int aI, int bI, 
+									ROI ROI_parameters);
+
 
 };
 

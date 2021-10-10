@@ -504,6 +504,34 @@ void save_histogram_image(image &histogram_image, unsigned * countArray,
 	histogram_image.save(ROI_parameters.histogramName);
 }
 
+void do_histogram(image &src,
+					unsigned histo_height, unsigned histo_width, 
+					ROI ROI_parameters,
+					unsigned bucketSize=2,
+					bool isModified=false,
+					int minVal=0, int maxVal=255,
+					int RGB=RED)
+{
+	// create, allocate, and init to all 0's
+	unsigned * countArray;
+	countArray = (unsigned *) malloc(histo_width * sizeof(countArray[0]));
+	memset(countArray, 0, histo_width * sizeof(countArray[0]));
+	
+	image histogramImage;
+
+	if (isModified)
+		sprintf(ROI_parameters.histogramName, "%s_NEW.pgm", ROI_parameters.histogramName );
+
+
+	create_histogram_array(src, countArray, histo_height, histo_width, ROI_parameters, MINRGB, MAXRGB, RED);
+	save_histogram_image(histogramImage, countArray, histo_height, histo_width, ROI_parameters, bucketSize);
+
+	// print_histogram_array(countArray, histo_width, 5);
+
+	// free mem
+	free(countArray);
+}
+
 /*-----------------------------------------------------------------------**/
 void utility::histo_stretch(image &src, image &tgt, int a1, int b1, ROI ROI_parameters)
 {
@@ -519,23 +547,7 @@ void utility::histo_stretch(image &src, image &tgt, int a1, int b1, ROI ROI_para
 
 	unsigned histo_height{512}, histo_width{512}, bucketSize{2};
 
-	// create, allocate, and init to all 0's
-	unsigned * countArray;
-	countArray = (unsigned *) malloc(histo_width * sizeof(countArray[0]));
-	memset(countArray, 0, histo_width * sizeof(countArray[0]));
-	
-	image histogramImage;
-
-	char histoFileName[MAXRGB];
-	strcpy(histoFileName, "histoTest.pgm");
-
-	create_histogram_array(src, countArray, histo_height, histo_width, ROI_parameters, MINRGB, MAXRGB, RED);
-	save_histogram_image(histogramImage, countArray, histo_height, histo_width, ROI_parameters, bucketSize);
-
-	print_histogram_array(countArray, histo_width, 5);
-
-	// free mem
-	free(countArray);
+	do_histogram(src, histo_height, histo_width, ROI_parameters, bucketSize);
 
 	tgt.resize(src.getNumberOfRows(), src.getNumberOfColumns());
 
@@ -552,10 +564,13 @@ void utility::histo_stretch(image &src, image &tgt, int a1, int b1, ROI ROI_para
 				tgt.setPixel(row, col, checkValue((int)newVal));
 			}
 		}
+
+	do_histogram(tgt, histo_height, histo_width, ROI_parameters, floor(histo_width / (b1 - a1)), true);
+	
 }
 
 /*-----------------------------------------------------------------------**/
-void utility::thresh_histo_stretch(image src, image tgt, int T, int a1, int b1, int a2, int b2, ROI ROI_parameters)
+void utility::thresh_histo_stretch(image &src, image &tgt, int T, int a1, int b1, int a2, int b2, ROI ROI_parameters)
 {
 
 	// ROI variables
@@ -564,6 +579,9 @@ void utility::thresh_histo_stretch(image src, image tgt, int T, int a1, int b1, 
 	Sy = ROI_parameters.Sy;
 	X = ROI_parameters.X;
 	Y = ROI_parameters.Y;
+
+	unsigned histo_height{512}, histo_width{512}, bucketSize{2};
+	do_histogram(src, histo_height, histo_width, ROI_parameters, bucketSize);
 
 	tgt.resize(src.getNumberOfRows(), src.getNumberOfColumns());
 
@@ -802,4 +820,66 @@ RGB_pixel utility::HSI_to_RGB(HSI_pixel in)
 
 	out = (RGB_pixel){.R = (int)round(R), .G = (int)round(G), .B = (int)round(B)};
 	return out;
+}
+
+// color funcitons
+/* 
+
+	stretch a user selected channel R G or B 
+	user selected a and b values
+
+ */
+void utility::histo_stretch_RGB_single(image &src, image &tgt, 
+									int a1, int b1, 
+									int channel, ROI ROI_parameters)
+{
+	
+}
+
+/* 
+
+	stretch all RGB channels
+	user selected a and b values, one set for each channel
+
+ */
+void utility::histo_stretch_RGB_multi(image &src, image &tgt, 
+									int aR, int bR,
+									int aG, int bG, 
+									int aB, int bB, 
+									ROI ROI_parameters)
+{
+	
+}		
+
+/* 
+	convert RGB to HSI
+	stretch I channel
+	save hisotgram of I channel
+	save gray level image of I channel
+
+	convert back to RGB and save color image after stretched I channel
+
+ */
+void utility::histo_stretch_I(image &src, image &tgt, 
+							int a1, int b1, 
+							ROI ROI_parameters)
+{
+	
+}
+
+// set a b to min max to ignore channel
+/* 
+
+	stretch HSI channels to user provided [a, b] range
+	
+	pass in [min, max] or [0, 0] for [a, b] to ignore channel
+
+ */
+void utility::histo_stretch_HSI(image &src, image &tgt, 
+							int aH, int bH,
+							int aS, int bS,
+							int aI, int bI, 
+							ROI ROI_parameters)
+{
+	
 }

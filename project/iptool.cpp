@@ -296,7 +296,6 @@ int main (int argc, char** argv)
 				pch = strtok(NULL, " ");
 				int CB = atoi(pch);
 
-				// if (debug) printf("more-C value: %f\n", atof(pch));
 				utility::colorBinarize(src,tgt, T_Color, CR, CG, CB, ROI_parameters);
 			}
 // PROJECT 2 =================================================================
@@ -309,28 +308,30 @@ int main (int argc, char** argv)
 				pch = strtok(NULL, " ");
 				int b1 = atoi(pch);
 
-				printf("histo_stretch vals: %d %d\n", a1,b1);
+				if (debug) printf("histo_stretch (a1, b1): (%d, %d)\n", a1,b1);
 
 				utility::histo_stretch(src, tgt, a1, b1, ROI_parameters);
 			}
 
 	        /* thresh_histo_stretch ============================================*/
-	  //       else if (strncasecmp(function_name,"thresh_histo_stretch",MAXLEN)==0) 
-	  //       {
-	  //       	//get color values 
-	  //       	pch = strtok(NULL, " ");
-			// 	int T = atoi(pch);
-			// 	pch = strtok(NULL, " ");
-			// 	int a1 = atoi(pch);
-			// 	pch = strtok(NULL, " ");
-			// 	int b1 = atoi(pch);
-			// 	pch = strtok(NULL, " ");
-			// 	int a2 = atoi(pch);
-			// 	pch = strtok(NULL, " ");
-			// 	int b2 = atoi(pch);
+	        else if (strncasecmp(function_name,"thresh_histo_stretch",MAXLEN)==0) 
+	        {
+	        	//get color values 
+	        	pch = strtok(NULL, " ");
+				int T = atoi(pch);
+				pch = strtok(NULL, " ");
+				int a1 = atoi(pch);
+				pch = strtok(NULL, " ");
+				int b1 = atoi(pch);
+				pch = strtok(NULL, " ");
+				int a2 = atoi(pch);
+				pch = strtok(NULL, " ");
+				int b2 = atoi(pch);
 
-			// 	utility::thresh_histo_stretch(src,tgt, T, a1, b1, a2, b2, ROI_parameters);
-			// }
+				if (debug) printf("thresh_histo_stretch (T, a1, b1, a2, b2): (%d, %d, %d, %d, %d)\n", T, a1, b1, a2, b2);
+
+				utility::thresh_histo_stretch(src,tgt, T, a1, b1, a2, b2, ROI_parameters);
+			}
 
 			else {
 				printf("No function: %s\n", pch);
