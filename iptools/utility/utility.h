@@ -10,6 +10,8 @@ struct ROI
 {
 	// hold the size and location of the ROI
 	unsigned int Sx, Sy, X, Y;
+	char histogramName[1024];
+	unsigned int idxROI;
 };
 
 // parameters to pass to functions

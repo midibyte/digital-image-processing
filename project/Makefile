@@ -26,7 +26,7 @@ clean:
 	find "../" -type f -name '*.o' -exec rm {} +
 
 
-DO_EXEC = g++ -O3 -o $(BIN_DIR)$@ $@.cpp -L ../lib -l iptools
+DO_EXEC = g++ -O3 -g -o $(BIN_DIR)$@ $@.cpp -L ../lib -l iptools
 
 #------ now compile
 $(EXEC):   		iptools

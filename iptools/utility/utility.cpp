@@ -1,4 +1,6 @@
 #include "utility.h"
+#include <string.h>
+
 
 #define MAXRGB 255
 #define MINRGB 0
@@ -319,6 +321,19 @@ void utility::colorBinarize(image &src, image &tgt, int T_Color, int CR, int CG,
 
 /*-----------------------------------------------------------------------**/
 //use to transform ranges for histogram stretching
+// make sure a value is in range
+// if below, set to min, if above, set to max
+template <class T>
+T check_value(T value, T minVal, T maxVal)
+{
+	if (value <= minVal ) return minVal;
+	else if (value >= maxVal) return maxVal;
+	else return value;
+}
+
+
+
+
 template <class T>
 T range_transform(const T in, const T inMin, const T inMax, const T outMin, const T outMax)
 {
@@ -342,6 +357,152 @@ T range_transform(const T in, const T inMin, const T inMax, const T outMin, cons
 	}
 }
 
+/*-----------------------------------------------------------------------**/
+/* 
+	creates the histogram array from the ROI in src
+	inputs:
+		src - the source image
+		minVal - min value to count in the histogram
+		maxVal - max value to count in the histogram
+		RGB - channel to consider in RGB 
+			for HSI R = H, G = S, B = I
+
+		ROI_parameters
+			contains the ROI position and size, only count pixels in here
+
+
+		use range transform to convert input range to histogram range
+		new range = [0, histo_width]
+
+		then transforms the counts such that the maximum value = histo height
+		NOTES:
+		use min and max to use this function with other ranges like HSI channels
+ */
+
+void create_histogram_array(image &src, unsigned * countArray, 
+							unsigned histo_height, unsigned histo_width, 
+							ROI ROI_parameters,
+							int minVal=0, int maxVal=255,
+							int RGB=RED)
+{
+	// init histogram image
+	// histogram_image.resize(histo_height, histo_width);
+
+	// ROI variables
+	unsigned Sx, Sy, X, Y;
+	Sx = ROI_parameters.Sx;
+	Sy = ROI_parameters.Sy;
+	X = ROI_parameters.X;
+	Y = ROI_parameters.Y;
+
+	// track number of each pixel
+	// dynamically allocated array
+	// unsigned int * countArray;
+	// countArray = (int *) malloc(histo_width * sizeof(countArray[0]));
+	// memset(countArray, 0, histo_width * sizeof(countArray[0]));
+	// for (int i = 0; i < histo_width; ++i) countArray[i] = 0;
+
+	// keep track on number of pixels counted
+	// track max and min val to fix histogram height
+	unsigned totalPixelCount{0}, maxPixelCount{0};
+
+	for (int row = Y; row < Y + Sy; ++row)
+		for (int col = X; col < X + Sx; ++col)
+		{
+			if (src.isInbounds(row, col))
+			{
+				++totalPixelCount;
+				int pixelVal = (int)check_value(src.getPixel(row, col, RGB), minVal, maxVal);
+
+				// convert pixel value to histogram width range [0, histo_width]
+				unsigned countedVal = (unsigned)range_transform(pixelVal, minVal, maxVal, 0, (int)histo_width);
+				// unsigned countedVal = pixelVal;
+				//increment count array
+				++countArray[countedVal];
+			}
+		}
+
+	for (int i = 0; i < histo_width; ++i)
+	{
+		if(countArray[i] > maxPixelCount) maxPixelCount = countArray[i];
+	}
+
+	for (int i = 0; i < histo_width; ++i)
+	{
+		// convert max value in each bucket to histo_height with range transform 
+		// fix the histogram height range from [0, totalPixelCount] to [0, histo_height]
+		countArray[i] = range_transform(countArray[i], (unsigned)0, maxPixelCount, (unsigned)0, histo_height);
+	}
+}
+/* 
+
+	visually print out the histogram array to the console
+
+ */
+
+void print_histogram_array(unsigned * countArray, unsigned histo_width, unsigned valsPerLine, unsigned combineFactor=8)
+{
+	unsigned tempCount = 0;
+	for (int i = 0; i < histo_width; ++i)
+	{
+		if (i % combineFactor != 0) tempCount += countArray[i];
+		else
+		{
+			if (i % valsPerLine == 0) printf("\n ************************** \n");
+			printf("bucket: %d, count: %d\t", i, tempCount);
+			tempCount = 0;
+		}
+	}
+
+	printf("\n ************************** \n");
+}
+
+void save_histogram_image(image &histogram_image, unsigned * countArray,
+							unsigned histo_height, unsigned histo_width,
+							ROI ROI_parameters,
+							unsigned bucketSize=2)
+{
+	//set histogram size
+	histogram_image.resize(histo_height, histo_width);
+
+
+	// // make bars in the image representing the bucket magnitude in the histogram countArray
+	// for (int col = 0; col < histo_width; ++col)
+	// 	for (int row = histo_height - 1; row >= 0; --row)
+	// 	{
+	// 		// start from the bottom
+	// 		//white bg with black pixels for bars
+	// 		if ( (histo_height - row) < countArray[col])
+	// 			histogram_image.setPixel(row, col, RED, MINRGB);
+	// 		else 
+	// 			histogram_image.setPixel(row, col, RED, MAXRGB);
+	// 	}
+
+	//bucket size version
+	// make bars in the image representing the bucket magnitude in the histogram countArray
+	// increment by bucket size and make bucketSize bars
+	for (int col = 0; col < histo_width; ++col)
+		for (int row = histo_height - bucketSize; row >= 0; --row)
+		{
+			// get sum of columns to combine and make one bucket
+			unsigned bucketSum{0};
+			for (int bucket = 0; bucket < bucketSize && (col+bucket) < histo_width; ++bucket)
+				bucketSum += countArray[col+bucket];
+
+			// fill enough colums to make a bucketSize wide column
+			for (int bucket = 0; bucket < bucketSize; ++bucket)
+			{	
+				// start from the bottom
+				//white bg with black pixels for bars
+				if ( (histo_height - row) < bucketSum)
+					histogram_image.setPixel(row, col + bucket, RED, MINRGB);
+				else 
+					histogram_image.setPixel(row, col + bucket, RED, MAXRGB);
+			}
+		}
+
+	histogram_image.save(ROI_parameters.histogramName);
+}
 
 /*-----------------------------------------------------------------------**/
 void utility::histo_stretch(image &src, image &tgt, int a1, int b1, ROI ROI_parameters)
@@ -354,6 +515,28 @@ void utility::histo_stretch(image &src, image &tgt, int a1, int b1, ROI ROI_para
 	X = ROI_parameters.X;
 	Y = ROI_parameters.Y;
 
+	// make the histogram
+
+	unsigned histo_height{512}, histo_width{512}, bucketSize{2};
+
+	// create, allocate, and init to all 0's
+	unsigned * countArray;
+	countArray = (unsigned *) malloc(histo_width * sizeof(countArray[0]));
+	memset(countArray, 0, histo_width * sizeof(countArray[0]));
+	
+	image histogramImage;
+
+	char histoFileName[MAXRGB];
+	strcpy(histoFileName, "histoTest.pgm");
+
+	create_histogram_array(src, countArray, histo_height, histo_width, ROI_parameters, MINRGB, MAXRGB, RED);
+	save_histogram_image(histogramImage, countArray, histo_height, histo_width, ROI_parameters, bucketSize);
+
+	print_histogram_array(countArray, histo_width, 5);
+
+	// free mem
+	free(countArray);
+
 	tgt.resize(src.getNumberOfRows(), src.getNumberOfColumns());
 
 	// now transform pixels and set tgt image
@@ -363,16 +546,13 @@ void utility::histo_stretch(image &src, image &tgt, int a1, int b1, ROI ROI_para
 			if(tgt.isInbounds(row, col))
 			{
 				int pixel = src.getPixel(row, col);
-				if (pixel == -1) printf("get pixel error at row col: %d %d\n",row, col );
 
+				// get new pixel val and set
 				int newVal = range_transform(pixel, a1, b1, 0, 255);
 				tgt.setPixel(row, col, checkValue((int)newVal));
-
-	
 			}
 		}
 }
-
 
 /*-----------------------------------------------------------------------**/
 void utility::thresh_histo_stretch(image src, image tgt, int T, int a1, int b1, int a2, int b2, ROI ROI_parameters)
@@ -385,7 +565,6 @@ void utility::thresh_histo_stretch(image src, image tgt, int T, int a1, int b1, 
 	X = ROI_parameters.X;
 	Y = ROI_parameters.Y;
 
-
 	tgt.resize(src.getNumberOfRows(), src.getNumberOfColumns());
 
 	// now transform pixels and set tgt image
@@ -394,23 +573,20 @@ void utility::thresh_histo_stretch(image src, image tgt, int T, int a1, int b1, 
 		{
 			if(src.isInbounds(row, col) && tgt.isInbounds(row, col))
 			{
-				
 				int pixel = src.getPixel(row, col);
 				int newVal;
 
-				if (pixel <= T)
+				if (pixel < T)
 				{
 					// dark pixels, use a1, b1
 					newVal = range_transform(pixel, a1, b1, 0, 255);
-
 				}
-				else
+				else // >= T bright pixels, use a2, b2
 				{
 					newVal = range_transform(pixel, a2, b2, 0, 255);
 				}
-
-				tgt.setPixel(row, col, (int)newVal);
-	
+				// set new pixel value
+				tgt.setPixel(row, col, checkValue((int)newVal));
 			}
 		}
 
@@ -418,22 +594,15 @@ void utility::thresh_histo_stretch(image src, image tgt, int T, int a1, int b1, 
 
 /*Project 2 Color functions*/
 
-// make sure a value is in range
-// if not set to max or min
-template <class T>
-T check_value(T value, T minVal, T maxVal)
-{
-	if (value <= minVal ) return minVal;
-	else if (value >= maxVal) return maxVal;
-	else return value;
-}
 
 /*-----------------------------------------------------------------------**/
 /*
 	RGB to HSI
 	converts a single pixel
-	// NOTE formula from wikipedia
-	// H[0, 360] S and I [0, 1]
+ 	NOTE formula from wikipedia
+	H[0, 360] S and I [0, 1]
+
+	RGB range [0, 255]
 */
 HSI_pixel utility::RGB_to_HSI(RGB_pixel in)
 {

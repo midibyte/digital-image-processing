@@ -87,6 +87,8 @@ int main (int argc, char** argv)
 	char str[MAXLEN];
 	// output file name
 	char outfile[MAXLEN];
+	// input file name
+	char infile[MAXLEN];
 	// holds strings parsed from the lines in the parameters file
 	char *pch;
 	// holds function name
@@ -121,6 +123,7 @@ int main (int argc, char** argv)
 
 		// get source image file name
 		pch = strtok(str, " ");
+		strcpy(infile, pch);
 		src.read(pch);
 
 		if (debug > 0) printf("source image: %s\n", pch);
@@ -174,6 +177,9 @@ int main (int argc, char** argv)
 			ROI_parameters.X = atoi(pch);
 			pch = strtok(NULL, " ");
 			ROI_parameters.Y = atoi(pch);
+
+			ROI_parameters.idxROI=idxROI;
+			sprintf(ROI_parameters.histogramName, "histogram_%s_ROI_%d.pgm",outfile, idxROI );
 
 			if (debug > 0) printf("Sx, Sy, X, Y: %d, %d, %d, %d\n", ROI_parameters.Sx, ROI_parameters.Sy, ROI_parameters.X, ROI_parameters.Y );
 
