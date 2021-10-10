@@ -354,8 +354,6 @@ void utility::histo_stretch(image &src, image &tgt, int a1, int b1, ROI ROI_para
 	X = ROI_parameters.X;
 	Y = ROI_parameters.Y;
 
-
-
 	tgt.resize(src.getNumberOfRows(), src.getNumberOfColumns());
 
 	// now transform pixels and set tgt image
@@ -366,189 +364,273 @@ void utility::histo_stretch(image &src, image &tgt, int a1, int b1, ROI ROI_para
 			{
 				int pixel = src.getPixel(row, col);
 				if (pixel == -1) printf("get pixel error at row col: %d %d\n",row, col );
-				// int pixel = 67;
 
 				int newVal = range_transform(pixel, a1, b1, 0, 255);
-
 				tgt.setPixel(row, col, checkValue((int)newVal));
 
-				// printf("a b %d %d, pixel in, out: %d, %d row col: %d %d\n",a, b, pixel, newVal, row, col );
-				// printf("==========================================\n");
-				// printf("a, b: %d %d\n",a1, b1);
-				// printf("in, out: %d %d\n",pixel, newVal);
-				// printf("row, col: %d %d\n",row, col);
-				// printf("==========================================\n");
 	
 			}
 		}
 }
 
 
-// /*-----------------------------------------------------------------------**/
-// void utility::thresh_histo_stretch(image src, image tgt, int T, int a1, int b1, int a2, int b2, ROI ROI_parameters)
-// {
+/*-----------------------------------------------------------------------**/
+void utility::thresh_histo_stretch(image src, image tgt, int T, int a1, int b1, int a2, int b2, ROI ROI_parameters)
+{
 
-// 	// ROI variables
-// 	unsigned int Sx, Sy, X, Y;
-// 	Sx = ROI_parameters.Sx;
-// 	Sy = ROI_parameters.Sy;
-// 	X = ROI_parameters.X;
-// 	Y = ROI_parameters.Y;
+	// ROI variables
+	unsigned int Sx, Sy, X, Y;
+	Sx = ROI_parameters.Sx;
+	Sy = ROI_parameters.Sy;
+	X = ROI_parameters.X;
+	Y = ROI_parameters.Y;
 
 
+	tgt.resize(src.getNumberOfRows(), src.getNumberOfColumns());
 
-// 	tgt.resize(src.getNumberOfRows(), src.getNumberOfColumns());
-
-// 	// now transform pixels and set tgt image
-// 	for (int row = Y; row < Y + Sy; ++row)
-// 		for (int col = X; col < X + Sx; ++col)
-// 		{
-// 			if(src.isInbounds(row, col) && tgt.isInbounds(row, col))
-// 			{
+	// now transform pixels and set tgt image
+	for (int row = Y; row < Y + Sy; ++row)
+		for (int col = X; col < X + Sx; ++col)
+		{
+			if(src.isInbounds(row, col) && tgt.isInbounds(row, col))
+			{
 				
-// 				int pixel = src.getPixel(row, col);
-// 				int newVal;
+				int pixel = src.getPixel(row, col);
+				int newVal;
 
-// 				if (pixel <= T)
-// 				{
-// 					// dark pixels, use a1, b1
-// 					newVal = range_transform(pixel, a1, b1, 0, 255);
+				if (pixel <= T)
+				{
+					// dark pixels, use a1, b1
+					newVal = range_transform(pixel, a1, b1, 0, 255);
 
-// 				}
-// 				else
-// 				{
-// 					newVal = range_transform(pixel, a2, b2, 0, 255);
+				}
+				else
+				{
+					newVal = range_transform(pixel, a2, b2, 0, 255);
+				}
 
-// 				}
+				tgt.setPixel(row, col, (int)newVal);
+	
+			}
+		}
 
+}
 
-// 				tgt.setPixel(row, col, (int)newVal);
+/*Project 2 Color functions*/
 
-// 				// printf("a b %d %d, pixel in, out: %d, %d row col: %d %d\n",a, b, pixel, newVal, row, col );
-// 				// printf("==========================================\n");
-// 				// printf("a, b: %d %d\n",a, b);
-// 				// printf("in, out: %d %d\n",pixel, newVal);
-// 				// printf("row, col: %d %d\n",row, col);
-// 				// printf("==========================================\n");
+// make sure a value is in range
+// if not set to max or min
+template <class T>
+T check_value(T value, T minVal, T maxVal)
+{
+	if (value <= minVal ) return minVal;
+	else if (value >= maxVal) return maxVal;
+	else return value;
+}
 
+/*-----------------------------------------------------------------------**/
+/*
+	RGB to HSI
+	converts a single pixel
+	// NOTE formula from wikipedia
+	// H[0, 360] S and I [0, 1]
+*/
+HSI_pixel utility::RGB_to_HSI(RGB_pixel in)
+{
+	double R, G, B, min_RGB, max_RGB, C;
+	double H, S, I, h_dash;
+
+	// check and fix values if needed
+	R = check_value(in.R, MINRGB, MAXRGB);
+	G = check_value(in.G, MINRGB, MAXRGB);
+	B = check_value(in.B, MINRGB, MAXRGB);
+
+	// BASE CASES
+
+	if (R == 0 && G == 0 && B == 0)
+	{
+		H = S = I = 0.0;
+	}
+
+	else if (R == 255 && G == 255 && B == 255)
+	{
+		H = 0.0;
+		S = 0.0;
+		I = 255;
+	}
+
+	else
+	{
+		min_RGB = fmin(fmin(R, G), B);
+		max_RGB = fmax(fmax(R, G), B);
+
+		// chroma
+		C = max_RGB - min_RGB;
+
+		/*
+			intensity
+			I = 1/3 (R + G + B)
+		*/
+
+		I = (R + G + B)/3.0;
+
+		if (R == G && G == B) 
+			H = 0;
+
+		else
+		{
+			/*
+				saturation
+				S = 0 if I = 0
+				else, S = 1 - min(RGB) / I
+			*/
+			if (C == 0)
+			{
+				// H = 0;
+				S = 0;
+			}
+			else if (I == 0) 
+				S = 0;
+			else 
+				S = 1 - (min_RGB / I);
+
+			// HUE
+
+			if (C == 0) 
+				H = 0;
+			else
+			{
+				if (max_RGB == R) 
+					H = fmod( (G - B)/C, 6);
+				else if (max_RGB == G) 
+					H = (B - R)/ C + 2;
+				else if (max_RGB == B)
+					H = (R - G) / C + 4;
 				
-// 			}
-// 		}
+				H *= 60;
+			}
+		}
+	}
 
-// }
+	if (H < 0) H += 360;
 
-// /*Project 2 Color functions*/
+	HSI_pixel out;
 
+	out = (HSI_pixel){.H = H, .S = S, .I = I/255};
 
-// /*-----------------------------------------------------------------------**/
-// /*
-// RGB to HSI
-// converts a single pixel
-// */
-// HSI_pixel RGB_to_HSI(RGB_pixel in)
-// {
-// 	int R, G, B, min_RGB, max_RGB, C;
-// 	double H, S, I, h_dash;
+	return out;
+}
+/*-----------------------------------------------------------------------**/
+/*
+	HSI to RGB
+	converts a single pixel
 
-// 	R = in.R; G = in.G; B = in.B;
+	H [0, 360] float 
+	S and I [0, 1] float
 
-// 	min_RGB = min(min(R, G), B);
-// 	max_RGB = max(max(R, G), B);
+	output:
+	RGB [0, 255] integer
 
-// 	C = max_RGB - min_RGB;
+	using formula from wikipedia
+	https://en.wikipedia.org/wiki/HSL_and_HSV#HSI_to_RGB
 
-// 	/*
-// 		intensity
-// 		I = 1/3 (R + G + B)
-// 	*/
+*/
+RGB_pixel utility::HSI_to_RGB(HSI_pixel in)
+{
 
-// 	I = (double)(R + G + B)/3.0;
+	// double R, G, B, H, S, I, C, X, h_dash, Z, m;
+	double R, G, B, H, S, I;
+	RGB_pixel out;
 
-// 	/*
-// 		saturation
-// 		S = 0 if I = 0
-// 		else, S = 1 - min(RGB) / I
-// 	*/
-// 	if (I == 0) S = 0;
-// 	else S = 1 - (min_RGB / I);
+	// R = G = B = 0;
 
-// 	/*
-// 		C = chroma = max(RGB) - min(RGB)
-// 		H' = h =
+	// make sure values are correct
+	H = check_value(in.H, 0.0, 360.0); 
+	S = check_value(in.S, 0.0, 1.0); 
+	I = check_value(in.I, 0.0, 1.0); 
 
-// 		0, if C = 0
-// 		(G-B)/C mod 6, if M =R
-// 		(B-R)/C + 2, if M=G
-// 		(R-G)/C + 4, if M=B
-
-// 		H = 60deg * H'
-
-// 	*/
-
-// 	if (C == 0) h_dash = 0;
-// 	else if ( max_RGB == R ) h_dash = ((G-B)/C) % 6;
-// 	else if ( max_RGB == G ) h_dash = ((B-R)/C) + 2;
-// 	else if ( max_RGB == B ) h_dash = ((R-G)/C) + 4;
-
-// 	H = 60 * h_dash;
-
-// 	HSI_pixel out;
-
-// 	out = (HSI_pixel){.H = H, .S = S, .I = I};
-
-// 	return out;
-// }
-// /*-----------------------------------------------------------------------**/
-// /*
-// 	HSI to RGB
-// 	converts a single pixel
-
-// 	H [0, 360]
-// 	S and I [0, 1]
-
-// */
-// RGB_pixel HSI_to_RGB(HSI_pixel in)
-// {
-// 	RGB_pixel out;
-// 	int R, G, B;
-// 	R = G = B = 0;
-
-// 	double H, S, I, C, X, h_dash, Z;
-// 	H = in.H; S = in.I; I = in.I; 
-
-// 	h_dash = H/60;
-
-// 	Z = 1 - abs((int)h_dash % 2 - 1);
+	// SPECIAL CASES
+	// if (I == 0) return (RGB_pixel){.R = 0, .G = 0, .B = 0};
+	// if (S == 0) return (RGB_pixel){.R = I*255, .G = I*255, .B = I* 255};
+	// if (I == 1.0) return (RGB_pixel){.R = 255, .G = 255, .B = 255};
 
 
-// 	/*
-// 		chroma = C
-// 	*/
+	double h_dash, Z, chroma, X;
 
-// 	C = ( 3 * I * S )/( 1 + Z);
+	h_dash = H / 60.0;
+	Z = 1.0 - abs(fmod(h_dash, 2.0) - 1.0);
+	chroma = (3.0 * I * S) / (1.0 + Z);
+	X = chroma * Z;
 
-// 	X = C * Z;
+	if ( 0 <= h_dash && h_dash <= 1)
+		{
+			R = chroma;
+			G = X;
+			B = 0;
+		}
+	else if (1 <= h_dash && h_dash <= 2)
+		{
+			R = X;
+			G = chroma;
+			B = 0;
+		}
+	else if (2 <= h_dash && h_dash <= 3)
+		{
+			R = 0;
+			G = chroma;
+			B = X;
+		}
+	else if (3 <= h_dash && h_dash <= 4)
+		{
+			R = 0;
+			G = X;
+			B = chroma;
+		}
+	else if (4 <= h_dash && h_dash <= 5)
+		{
+			R = X;
+			G = 0;
+			B = chroma;
+		}
+	else if (5 <= h_dash && h_dash <= 6)
+		{
+			R = chroma;
+			G = 0;
+			B = X;
+		}
+	else
+		{
+			R = 0;
+			G = 0;
+			B = 0;
+		}
 
-
-// 	if (0 <= h_dash < 1)	
-// 		{R = C; G = X; B = 0;}
-// 	else if (1 <= h_dash < 2)
-// 		{R = X; G = C; B = 0;}
-// 	else if (2 <= h_dash < 3)
-// 		{R = 0; G = C; B = X;}
-// 	else if (3 <= h_dash < 4)
-// 		{R = 0; G = X; B = C;}
-// 	else if (4 <= h_dash < 5)
-// 		{R = X; G = 0; B = C;}
-// 	else if (5 <= h_dash < 6)
-// 		{R = C; G = 0; B = X;}
-
-// 	// when H is undefined 
-// 	else {R = G = B = 0;}
+	double m = I * (1 - S);
+	R = R + m;
+	G = G + m;
+	B = B + m;
 
 
 
+	// prevent colors out of range
+	double max_RGB = max(R, max(G, B));
 
-// 	out = (RGB_pixel){.R = R, .G = G, .B = B};
-// 	return out;
-// }
+	if (max_RGB > 1)
+	{
+		R = R/max_RGB;
+		B = B/max_RGB;
+		G = G/max_RGB;
+	}
+
+
+	R *= 255;
+	G *= 255;
+	B *= 255;
+
+	// R = (int)round(R);
+	// G = (int)round(G);
+	// B = (int)round(B);
+
+	out = (RGB_pixel){.R = (int)round(R), .G = (int)round(G), .B = (int)round(B)};
+	return out;
+}

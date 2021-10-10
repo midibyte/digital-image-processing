@@ -12,6 +12,10 @@ EXEC = iptool
 
 all: $(EXEC)
 
+test: 
+	(cd ../iptools; make)
+	g++ -O3 -o $(BIN_DIR)$@ $@.cpp -L ../lib -l iptools
+
 iptools:
 	(cd ../iptools; make)
 

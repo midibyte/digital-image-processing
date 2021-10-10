@@ -38,7 +38,7 @@ struct HSI_pixel
 
 struct RGB_pixel
 {
-	unsigned int R, G, B;
+	int R, G, B;
 };
 
 class utility
@@ -66,8 +66,11 @@ class utility
 
 		// PROJECT 2
 
+		static HSI_pixel RGB_to_HSI(RGB_pixel in);
+		static RGB_pixel HSI_to_RGB(HSI_pixel in);
+
 		static void histo_stretch(image &src, image &tgt, int a1, int b1, ROI ROI_parameters);
-		// static void thresh_histo_stretch(image src, image tgt, int T, int a1, int b1, int a2, int b2, ROI ROI_parameters);
+		static void thresh_histo_stretch(image src, image tgt, int T, int a1, int b1, int a2, int b2, ROI ROI_parameters);
 
 };
 
