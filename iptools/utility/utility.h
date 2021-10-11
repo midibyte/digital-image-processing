@@ -90,14 +90,14 @@ class utility
 											ROI ROI_parameters);
 											
 		static void histo_stretch_I(image &src, image &tgt, 
-									int a1, int b1, 
+									double a1, double b1, 
 									ROI ROI_parameters);
 
 		// set a b to min max to ignore channel
 		static void histo_stretch_HSI(image &src, image &tgt, 
-									int aH, int bH,
-									int aS, int bS,
-									int aI, int bI, 
+									double aH, double bH,
+									double aS, double bS,
+									double aI, double bI, 
 									ROI ROI_parameters);
 
 

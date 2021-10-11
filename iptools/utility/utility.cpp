@@ -34,9 +34,10 @@ void utility::setModifiedROI(image &wasModified, const int Sx, const int Sy, con
 }
 
 /*
-all functions operate within ROI only
+	NOTES
+	all functions operate within ROI only
 
-uses row, col order
+	all images use row, col order
 
 	Behaviors:
 		if ROI is out of bounds, return without modifying image
@@ -332,8 +333,6 @@ T check_value(T value, T minVal, T maxVal)
 }
 
 
-
-
 template <class T>
 T range_transform(const T in, const T inMin, const T inMax, const T outMin, const T outMax)
 {
@@ -378,29 +377,18 @@ T range_transform(const T in, const T inMin, const T inMax, const T outMin, cons
 		NOTES:
 		use min and max to use this function with other ranges like HSI channels
  */
-
 void create_histogram_array(image &src, unsigned * countArray, 
 							unsigned histo_height, unsigned histo_width, 
 							ROI ROI_parameters,
 							int minVal=0, int maxVal=255,
 							int RGB=RED)
 {
-	// init histogram image
-	// histogram_image.resize(histo_height, histo_width);
-
 	// ROI variables
 	unsigned Sx, Sy, X, Y;
 	Sx = ROI_parameters.Sx;
 	Sy = ROI_parameters.Sy;
 	X = ROI_parameters.X;
 	Y = ROI_parameters.Y;
-
-	// track number of each pixel
-	// dynamically allocated array
-	// unsigned int * countArray;
-	// countArray = (int *) malloc(histo_width * sizeof(countArray[0]));
-	// memset(countArray, 0, histo_width * sizeof(countArray[0]));
-	// for (int i = 0; i < histo_width; ++i) countArray[i] = 0;
 
 	// keep track on number of pixels counted
 	// track max and min val to fix histogram height
@@ -439,7 +427,6 @@ void create_histogram_array(image &src, unsigned * countArray,
 	visually print out the histogram array to the console
 
  */
-
 void print_histogram_array(unsigned * countArray, unsigned histo_width, unsigned valsPerLine, unsigned combineFactor=8)
 {
 	unsigned tempCount = 0;
@@ -744,7 +731,7 @@ RGB_pixel utility::HSI_to_RGB(HSI_pixel in)
 
 	double h_dash, Z, chroma, X;
 
-	h_dash = H / 60.0;
+	h_dash = H / 60.0; 	
 	Z = 1.0 - abs(fmod(h_dash, 2.0) - 1.0);
 	chroma = (3.0 * I * S) / (1.0 + Z);
 	X = chroma * Z;
@@ -834,6 +821,37 @@ void utility::histo_stretch_RGB_single(image &src, image &tgt,
 									int channel, ROI ROI_parameters)
 {
 	
+	// ROI variables
+	unsigned int Sx, Sy, X, Y;
+	Sx = ROI_parameters.Sx;
+	Sy = ROI_parameters.Sy;
+	X = ROI_parameters.X;
+	Y = ROI_parameters.Y;
+
+	// make the histogram
+
+	unsigned histo_height{512}, histo_width{512}, bucketSize{2};
+
+	do_histogram(src, histo_height, histo_width, ROI_parameters, bucketSize);
+
+	tgt.resize(src.getNumberOfRows(), src.getNumberOfColumns());
+
+	// now transform pixels and set tgt image
+	for (int row = Y; row < Y + Sy; ++row)
+		for (int col = X; col < X + Sx; ++col)
+		{
+			if(tgt.isInbounds(row, col))
+			{
+				int pixel = src.getPixel(row, col, channel);
+
+				// get new pixel val and set
+				int newVal = range_transform(pixel, a1, b1, 0, 255);
+				tgt.setPixel(row, col, channel, checkValue((int)newVal));
+			}
+		}
+
+	do_histogram(tgt, histo_height, histo_width, ROI_parameters, floor(histo_width / (b1 - a1)), true, 0, 255, channel);
+	
 }
 
 /* 
@@ -849,6 +867,44 @@ void utility::histo_stretch_RGB_multi(image &src, image &tgt,
 									ROI ROI_parameters)
 {
 	
+	// ROI variables
+	unsigned int Sx, Sy, X, Y;
+	Sx = ROI_parameters.Sx;
+	Sy = ROI_parameters.Sy;
+	X = ROI_parameters.X;
+	Y = ROI_parameters.Y;
+
+	// make the histogram
+
+	unsigned histo_height{512}, histo_width{512}, bucketSize{2};
+
+	// do_histogram(src, histo_height, histo_width, ROI_parameters, bucketSize);
+
+	tgt.resize(src.getNumberOfRows(), src.getNumberOfColumns());
+
+	// now transform pixels and set tgt image
+	for (int row = Y; row < Y + Sy; ++row)
+		for (int col = X; col < X + Sx; ++col)
+		{
+			if(tgt.isInbounds(row, col))
+			{
+				int pixelR = src.getPixel(row, col, RED);
+				int pixelG = src.getPixel(row, col, GREEN);
+				int pixelB = src.getPixel(row, col, BLUE);
+
+				// get new pixel val and set
+				int newValR = range_transform(pixelR, aR, bR, 0, 255);
+				int newValG = range_transform(pixelG, aG, bG, 0, 255);
+				int newValB = range_transform(pixelB, aB, bB, 0, 255);
+
+				tgt.setPixel(row, col, RED, checkValue((int)newValR));
+				tgt.setPixel(row, col, GREEN, checkValue((int)newValG));
+				tgt.setPixel(row, col, BLUE, checkValue((int)newValB));
+			}
+		}
+
+	// do_histogram(tgt, histo_height, histo_width, ROI_parameters, floor(histo_width / (b1 - a1)), true);
+	
 }		
 
 /* 
@@ -861,9 +917,56 @@ void utility::histo_stretch_RGB_multi(image &src, image &tgt,
 
  */
 void utility::histo_stretch_I(image &src, image &tgt, 
-							int a1, int b1, 
+							double a1, double b1, 
 							ROI ROI_parameters)
 {
+	
+	// ROI variables
+	unsigned int Sx, Sy, X, Y;
+	Sx = ROI_parameters.Sx;
+	Sy = ROI_parameters.Sy;
+	X = ROI_parameters.X;
+	Y = ROI_parameters.Y;
+
+	// make the histogram
+
+	unsigned histo_height{512}, histo_width{512}, bucketSize{2};
+
+	// do_histogram(src, histo_height, histo_width, ROI_parameters, bucketSize);
+
+	tgt.resize(src.getNumberOfRows(), src.getNumberOfColumns());
+
+	// now transform pixels and set tgt image
+	for (int row = Y; row < Y + Sy; ++row)
+		for (int col = X; col < X + Sx; ++col)
+		{
+			if(tgt.isInbounds(row, col))
+			{
+				// get RGB pixels
+				int pixelR = src.getPixel(row, col, RED);
+				int pixelG = src.getPixel(row, col, GREEN);
+				int pixelB = src.getPixel(row, col, BLUE);
+
+				// convert to HSI for stretching
+				HSI_pixel pixelConverted = RGB_to_HSI(RGB_pixel{.R=pixelR, .G=pixelG, .B=pixelB});
+
+
+				// strech HSI pixels
+				// double newValH = range_transform(pixelConverted.H, aH, bH, 0.0, 360.0);
+				// double newValS = range_transform(pixelConverted.S, aS, bS, 0.0, 1.0);
+				double newValI = range_transform(pixelConverted.I, a1, b1, 0.0, 1.0);
+
+				// convert back to RGB
+				RGB_pixel pixelModified = HSI_to_RGB(HSI_pixel{.H=pixelConverted.H, .S=pixelConverted.S, .I=newValI});
+
+				// set values in new image
+				tgt.setPixel(row, col, RED, checkValue((int)pixelModified.R));
+				tgt.setPixel(row, col, GREEN, checkValue((int)pixelModified.G));
+				tgt.setPixel(row, col, BLUE, checkValue((int)pixelModified.B));
+			}
+		}
+
+	// do_histogram(tgt, histo_height, histo_width, ROI_parameters, floor(histo_width / (b1 - a1)), true);
 	
 }
 
@@ -876,10 +979,57 @@ void utility::histo_stretch_I(image &src, image &tgt,
 
  */
 void utility::histo_stretch_HSI(image &src, image &tgt, 
-							int aH, int bH,
-							int aS, int bS,
-							int aI, int bI, 
+							double aH, double bH,
+							double aS, double bS,
+							double aI, double bI, 
 							ROI ROI_parameters)
 {
+	
+	// ROI variables
+	unsigned int Sx, Sy, X, Y;
+	Sx = ROI_parameters.Sx;
+	Sy = ROI_parameters.Sy;
+	X = ROI_parameters.X;
+	Y = ROI_parameters.Y;
+
+	// make the histogram
+
+	unsigned histo_height{512}, histo_width{512}, bucketSize{2};
+
+	// do_histogram(src, histo_height, histo_width, ROI_parameters, bucketSize);
+
+	tgt.resize(src.getNumberOfRows(), src.getNumberOfColumns());
+
+	// now transform pixels and set tgt image
+	for (int row = Y; row < Y + Sy; ++row)
+		for (int col = X; col < X + Sx; ++col)
+		{
+			if(tgt.isInbounds(row, col))
+			{
+				// get RGB pixels
+				int pixelR = src.getPixel(row, col, RED);
+				int pixelG = src.getPixel(row, col, GREEN);
+				int pixelB = src.getPixel(row, col, BLUE);
+
+				// convert to HSI for stretching
+				HSI_pixel pixelConverted = RGB_to_HSI(RGB_pixel{.R=pixelR, .G=pixelG, .B=pixelB});
+
+
+				// strech HSI pixels
+				double newValH = range_transform(pixelConverted.H, aH, bH, 0.0, 360.0);
+				double newValS = range_transform(pixelConverted.S, aS, bS, 0.0, 1.0);
+				double newValI = range_transform(pixelConverted.I, aI, bI, 0.0, 1.0);
+
+				// convert back to RGB
+				RGB_pixel pixelModified = HSI_to_RGB(HSI_pixel{.H=newValH, .S=newValS, .I=newValI});
+
+				// set values in new image
+				tgt.setPixel(row, col, RED, checkValue((int)pixelModified.R));
+				tgt.setPixel(row, col, GREEN, checkValue((int)pixelModified.G));
+				tgt.setPixel(row, col, BLUE, checkValue((int)pixelModified.B));
+			}
+		}
+
+	// do_histogram(tgt, histo_height, histo_width, ROI_parameters, floor(histo_width / (b1 - a1)), true);
 	
 }
