@@ -159,6 +159,10 @@ vector<int>* image::getChannel (int rgb)
 		case BLUE:
 		return &data.blueChannel;
 		break;
+		// return red if fall through
+		default:
+		return &data.redChannel;
+
 	}
 }
 	/*-----------------------------------------------------------------------**/

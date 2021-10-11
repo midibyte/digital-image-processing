@@ -11,101 +11,128 @@ project- This folder hosts the files that will be compiled into executables.
 
 
 
-*** INSTALATION ***
+*** INSTALATION *********************************************************************
 
-On Linux
+	On Linux
 
-Enter the project directory in terminal and run make
+	Enter the project directory in terminal and run make
 
-As a result you should get iptool in project/bin directory.
+	As a result you should get iptool in project/bin directory.
 
-*** FUNCTIONS ***
+	If there are any errors when running make, run make clean, then make again
 
-Each function operates only in its ROI
+*** FUNCTIONS *********************************************************************
 
-1. Add intensity: add
-Increase the intensity for a gray-level image.
+	Each function operates only in its ROI
 
-2. Binarization: binarize
-Binarize the pixels with the threshold.
+	For each function, the function name is listed first, followed by the required parameters for that function
 
-3. Scaling: Scale
-Reduce or expand the heigh and width with two scale factors.
-Scaling factor = 2: double height and width of the input image.
-Scaling factor = 0.5: half height and width of the input image.
+	1. Add intensity: add
+	Increase the intensity for a gray-level image.
 
-Project 0:
+	2. Binarization: binarize
+	Binarize the pixels with the threshold.
 
-4. Dual threshold: dual_threshold
-	
-	inputs: threshold T, Values V1, V2
-	if pixel intensity:
-		> T, set pixel to V1
-		< T, set pixel to V2
-		== T, do nothing
+	3. Scaling: Scale
+	Reduce or expand the heigh and width with two scale factors.
+	Scaling factor = 2: double height and width of the input image.
+	Scaling factor = 0.5: half height and width of the input image.
 
-Project 1:
+	Project 0: ******************************************************************
 
-uniformSmoothing window_size
-	perform uniform smoothing with a window size of "window_size"
-	uses an odd numbered square window size only
+	4. Dual threshold: dual_threshold
+		
+		inputs: threshold T, Values V1, V2
+		if pixel intensity:
+			> T, set pixel to V1
+			< T, set pixel to V2
+			== T, do nothing
 
-colorMultiplicativeBrightness C_value
-	for each pixel, multiply the pixel RGB values each by C_value 
+	Project 1: ******************************************************************
 
-colorBinarize TColor CR CG CB
-	TColor is the Euclidean distance from each pixel to the user defined color: C(CR CG CB)
-    For each pixel, if the pixel is from  0 to TColor distance to C, set the pixel to "red" (255, 0, 0). 
-    If the pixel is between TColor and 2*TColor distance to C, set the pixel to "green" (0, 255, 0).
-    Set all other pixels to "white" (255, 255, 255).
+	uniformSmoothing window_size
+		perform uniform smoothing with a window size of "window_size"
+		uses an odd numbered square window size only
 
-PROJECT 2
+	colorMultiplicativeBrightness C_value
+		for each pixel, multiply the pixel RGB values each by C_value 
 
-Histogram image creation added
+	colorBinarize TColor CR CG CB
+		TColor is the Euclidean distance from each pixel to the user defined color: C(CR CG CB)
+		For each pixel, if the pixel is from  0 to TColor distance to C, set the pixel to "red" (255, 0, 0). 
+		If the pixel is between TColor and 2*TColor distance to C, set the pixel to "green" (0, 255, 0).
+		Set all other pixels to "white" (255, 255, 255).
 
-Histgram stretching
+	PROJECT 2 ******************************************************************
 
-Histogram stretching with thresholding
+	histo_stretch a b 
+		transforms the values inside the range [a b] to [0 255]
+		outputs a histogram both before and after the transformation
 
-Histogram stretching on one channel of RGB
+	thresh_histo_stretch T a1 b1 a2 b2
+		transforms the values :
+			less than T:
+				inside the range [a1 b1] to [0 255]
+			otherwise:
+				inside the range [a2 b2] to [0 255]
+		outputs a histogram both before and after the transformation
+		
 
-Histogram stretching on all RGB
+	stretch_RGB_single channel a b
+		transforms the values in an RGB image in "channel" inside the range [a b] to [0 255]
+		channel is a number 0, 1, 2 representing the channels R, G, B
 
-RGB to HSI
+	stretch_RGB_multi aR bR aB bB aG bG
+		transforms the values in the RED channel inside the range [aR bR] to [0 255]
+		transforms the values in the GREEN channel inside the range [aG bG] to [0 255]
+		transforms the values in the BLUE channel inside the range [aB bB] to [0 255]
 
-HSI to RGB 
+	stretch_I a b
+		converts the image from the RGB color space to HSI 
+		outputs a histogram image of the I channel 
+		outputs a gray level image representing the I channel 
+		using the I channel, transforms the values inside the range [a b] to [0 1.0]
+		outputs a histogram of the new I channel
+		outputs a gray level image of the representing the new I channel
+		converts the image with the new I channel from HSI back to RGB then outputs the new image
 
-Histogram stretching on I-component of HSI 
-	display I as a grey level image 
-	convert back to RGB and display color after stretched I channel
+	stretch_HSI aH bH aS bS aI bI
+		transforms the values in the RED channel inside the range [aH bH] to [0 360]
+		transforms the values in the GREEN channel inside the range [aS bS] to [0 1.0]
+		transforms the values in the BLUE channel inside the range [aI bI] to [0 1.0]
 
-Histogram stretching on H and S and HSI separately 
+		NOTE can set any of the a b to a=0 and b=1.0 to ignore that channel 
 
-*** PARAMETERS FILE ***
+	Histogram stretching on I-component of HSI 
+		display I as a grey level image 
+		convert back to RGB and display color after stretched I channel
 
-Each line in the parameters.txt file follows this format:
 
-infile outfile function ROI_count ROI_parameters function_parameters (one set of ROI_parameters and function_parameters for each ROI)
+*** PARAMETERS FILE *********************************************************************
 
-Function names and parameters:
+	Each line in the parameters.txt file follows this format:
 
-add value
-binarize threhold
-scale value
-dual_threshold T V1 V2
-uniformSmoothing window_size
-colorMultiplicativeBrightness C_value
-colorBinarize TColor CR CG CB
+	infile outfile function ROI_count ROI_parameters function_parameters (one set of ROI_parameters and function_parameters for each ROI)
 
-parameters.txt line example
-miami.ppm miami_coloradd_3ROI.ppm colorMultiplicativeBrightness 3 300 300 100 100 1.75 600 80 500 500 0.35 800 125 10 800 2.0
+	Function names and parameters:
 
-the line above is formatted like this: infile outfile funtion ROI_count ROI1(Sx, Sy, X, Y, C_value) ROI2(Sx, Sy, X, Y, C_value) ROI3(Sx, Sy, X, Y, C_value)
+	add value
+	binarize threhold
+	scale value
+	dual_threshold T V1 V2
+	uniformSmoothing window_size
+	colorMultiplicativeBrightness C_value
+	colorBinarize TColor CR CG CB
 
-*** Run the program: ./iptool parameters.txt
-can use: 
-./iptool parameters.txt 1
-to print debug strings to console
+	parameters.txt line example
+	miami.ppm miami_coloradd_3ROI.ppm colorMultiplicativeBrightness 3 300 300 100 100 1.75 600 80 500 500 0.35 800 125 10 800 2.0
+
+	the line above is formatted like this: infile outfile funtion ROI_count ROI1(Sx, Sy, X, Y, C_value) ROI2(Sx, Sy, X, Y, C_value) ROI3(Sx, Sy, X, Y, C_value)
+
+	*** Run the program: ./iptool parameters.txt
+	can use: 
+	./iptool parameters.txt 1
+	to print debug strings to console
 
 PROGRAM LOGIC
 

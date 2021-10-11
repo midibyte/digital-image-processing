@@ -15,19 +15,6 @@ struct ROI
 	unsigned int idxROI;
 };
 
-// parameters to pass to functions
-struct parameters
-{
-	// holds the number of ROIs - size of the ROI array
-	unsigned int count_ROI;
-	// holds the parameters for each ROI
-	struct ROI * ROIs;
-	// indicates debug print on or off
-	unsigned int debug;
-
-};
-
-
 struct HSI_pixel
 {
 	/*
@@ -100,6 +87,8 @@ class utility
 									double aI, double bI, 
 									ROI ROI_parameters);
 
+		template <typename T>
+		static void histo_stretch_vector(vector<T> * data, T a, T b);
 
 };
 

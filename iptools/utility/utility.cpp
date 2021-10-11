@@ -4,6 +4,10 @@
 
 #define MAXRGB 255
 #define MINRGB 0
+#define MINNORM 0.0
+#define MAXNORM 1.0
+#define MINHUE 0.0
+#define MAXHUE 360.0
 
 std::string utility::intToString(int number)
 {
@@ -333,11 +337,11 @@ T check_value(T value, T minVal, T maxVal)
 }
 
 
-template <class T>
-T range_transform(const T in, const T inMin, const T inMax, const T outMin, const T outMax)
+template <class T, class V>
+T range_transform(const V in, const V inMin, const V inMax, const T outMin, const T outMax)
 {
 
-	T out, inRange, outRange;
+	__float128 out, inRange, outRange;
 
 	inRange = inMax - inMin;
 
@@ -352,7 +356,7 @@ T range_transform(const T in, const T inMin, const T inMax, const T outMin, cons
 		outRange = outMax - outMin;
 
 
-		return (((in - inMin) * (outMax - outMin)) / (inMax - inMin)) + outMin;
+		return (T)((((in - inMin) * (outMax - outMin)) / (inMax - inMin)) + outMin);
 	}
 }
 
@@ -400,10 +404,11 @@ void create_histogram_array(image &src, unsigned * countArray,
 			if (src.isInbounds(row, col))
 			{
 				++totalPixelCount;
-				int pixelVal = (int)check_value(src.getPixel(row, col, RGB), minVal, maxVal);
+				// int pixelVal = (int)check_value(src.getPixel(row, col, RGB), minVal, maxVal);
+				int pixelVal = src.getPixel(row, col, RGB);
 
 				// convert pixel value to histogram width range [0, histo_width]
-				unsigned countedVal = (unsigned)range_transform(pixelVal, minVal, maxVal, 0, (int)histo_width);
+				unsigned countedVal = (unsigned)range_transform(pixelVal, minVal, maxVal, 0.0, (double)histo_width);
 				// unsigned countedVal = pixelVal;
 				//increment count array
 				++countArray[countedVal];
@@ -422,6 +427,43 @@ void create_histogram_array(image &src, unsigned * countArray,
 		countArray[i] = range_transform(countArray[i], (unsigned)0, maxPixelCount, (unsigned)0, histo_height);
 	}
 }
+
+template<typename T>
+void create_histogram_array(vector<T> &src, unsigned * countArray, 
+							unsigned histo_height, unsigned histo_width, 
+							T minVal, T maxVal)
+{
+
+	// keep track on number of pixels counted
+	// track max and min val to fix histogram height
+	unsigned totalPixelCount{0}, maxPixelCount{0};
+
+	for (int i = 0; i < src.size(); ++i)
+	{
+		++totalPixelCount;
+		double pixelVal = src[i];
+
+		// convert pixel value to histogram width range [0, histo_width]
+		unsigned countedVal = (unsigned)range_transform((double)pixelVal, (double)minVal, (double)maxVal, 0.0, (double)histo_width);
+		// printf("countedVal %d\n", countedVal);
+		// unsigned countedVal = pixelVal;
+		//increment count array
+		++countArray[countedVal];
+	}
+
+	for (int i = 0; i < histo_width; ++i)
+	{
+		if(countArray[i] > maxPixelCount) maxPixelCount = countArray[i];
+	}
+
+	for (int i = 0; i < histo_width; ++i)
+	{
+		// convert max value in each bucket to histo_height with range transform 
+		// fix the histogram height range from [0, totalPixelCount] to [0, histo_height]
+		countArray[i] = range_transform(countArray[i], (unsigned)0, maxPixelCount, (unsigned)0, histo_height);
+	}
+}
+
 /* 
 
 	visually print out the histogram array to the console
@@ -446,7 +488,7 @@ void print_histogram_array(unsigned * countArray, unsigned histo_width, unsigned
 
 void save_histogram_image(image &histogram_image, unsigned * countArray,
 							unsigned histo_height, unsigned histo_width,
-							ROI ROI_parameters,
+							const char * saveFileName,
 							unsigned bucketSize=2)
 {
 	//set histogram size
@@ -468,8 +510,8 @@ void save_histogram_image(image &histogram_image, unsigned * countArray,
 	//bucket size version
 	// make bars in the image representing the bucket magnitude in the histogram countArray
 	// increment by bucket size and make bucketSize bars
-	for (int col = 0; col < histo_width; ++col)
-		for (int row = histo_height - bucketSize; row >= 0; --row)
+	for (int col = 0; col <= histo_width - bucketSize; col += bucketSize)
+		for (int row = histo_height - 1; row >= 0; --row)
 		{
 			// get sum of columns to combine and make one bucket
 			unsigned bucketSum{0};
@@ -482,17 +524,49 @@ void save_histogram_image(image &histogram_image, unsigned * countArray,
 				// start from the bottom
 				//white bg with black pixels for bars
 				if ( (histo_height - row) < bucketSum)
-					histogram_image.setPixel(row, col + bucket, RED, MINRGB);
+					histogram_image.setPixel(row, col + bucket, MINRGB);
 				else 
-					histogram_image.setPixel(row, col + bucket, RED, MAXRGB);
+					histogram_image.setPixel(row, col + bucket, MAXRGB);
 			}
 		}
 
-	histogram_image.save(ROI_parameters.histogramName);
+	histogram_image.save(saveFileName);
+}
+/* 
+
+	vector input version
+
+ */
+template <typename T, typename V>
+void do_histogram(vector<T> &src,
+					unsigned histo_height, unsigned histo_width,
+					ROI ROI_parameters,
+					unsigned bucketSize=2,
+					bool isModified=false,
+					V minVal=0.0, V maxVal=100.0)
+{
+	// create, allocate, and init to all 0's
+	unsigned * countArray;
+	countArray = (unsigned *) malloc(histo_width * sizeof(countArray[0]));
+	memset(countArray, 0, histo_width * sizeof(countArray[0]));
+	
+	image histogramImage;
+
+	if (isModified)
+		sprintf(ROI_parameters.histogramName, "%s_NEW.pgm", ROI_parameters.histogramName );
+
+
+	create_histogram_array(src, countArray, histo_height, histo_width, minVal, maxVal);
+	save_histogram_image(histogramImage, countArray, histo_height, histo_width, ROI_parameters.histogramName, bucketSize);
+
+	// print_histogram_array(countArray, histo_width, 5);
+
+	// free mem
+	free(countArray);
 }
 
 void do_histogram(image &src,
-					unsigned histo_height, unsigned histo_width, 
+					unsigned histo_height, unsigned histo_width,
 					ROI ROI_parameters,
 					unsigned bucketSize=2,
 					bool isModified=false,
@@ -510,8 +584,8 @@ void do_histogram(image &src,
 		sprintf(ROI_parameters.histogramName, "%s_NEW.pgm", ROI_parameters.histogramName );
 
 
-	create_histogram_array(src, countArray, histo_height, histo_width, ROI_parameters, MINRGB, MAXRGB, RED);
-	save_histogram_image(histogramImage, countArray, histo_height, histo_width, ROI_parameters, bucketSize);
+	create_histogram_array(src, countArray, histo_height, histo_width, ROI_parameters, minVal, maxVal, RED);
+	save_histogram_image(histogramImage, countArray, histo_height, histo_width, ROI_parameters.histogramName, bucketSize);
 
 	// print_histogram_array(countArray, histo_width, 5);
 
@@ -532,9 +606,11 @@ void utility::histo_stretch(image &src, image &tgt, int a1, int b1, ROI ROI_para
 
 	// make the histogram
 
-	unsigned histo_height{512}, histo_width{512}, bucketSize{2};
+	unsigned histo_height{(MAXRGB + 1) * 2}, histo_width{(MAXRGB + 1) * 2}, bucketSize{2};
 
-	do_histogram(src, histo_height, histo_width, ROI_parameters, bucketSize);
+	// do_histogram(src, histo_height, histo_width, ROI_parameters, bucketSize);
+
+	vector<int> pixels, newPixels;
 
 	tgt.resize(src.getNumberOfRows(), src.getNumberOfColumns());
 
@@ -546,13 +622,21 @@ void utility::histo_stretch(image &src, image &tgt, int a1, int b1, ROI ROI_para
 			{
 				int pixel = src.getPixel(row, col);
 
+				pixels.push_back(pixel);
+
 				// get new pixel val and set
-				int newVal = range_transform(pixel, a1, b1, 0, 255);
+				int newVal = range_transform(pixel, a1, b1, MINRGB, MAXRGB);
+
+				newPixels.push_back(newVal);
+
 				tgt.setPixel(row, col, checkValue((int)newVal));
 			}
 		}
 
-	do_histogram(tgt, histo_height, histo_width, ROI_parameters, floor(histo_width / (b1 - a1)), true);
+	do_histogram(pixels, histo_height, histo_width, ROI_parameters, bucketSize, false, MINRGB, MAXRGB);
+	do_histogram(newPixels, histo_height, histo_width, ROI_parameters, bucketSize, true, MINRGB, MAXRGB);
+
+	// do_histogram(tgt, histo_height, histo_width, ROI_parameters, floor(histo_width / (b1 - a1)), true);
 	
 }
 
@@ -567,7 +651,8 @@ void utility::thresh_histo_stretch(image &src, image &tgt, int T, int a1, int b1
 	X = ROI_parameters.X;
 	Y = ROI_parameters.Y;
 
-	unsigned histo_height{512}, histo_width{512}, bucketSize{2};
+	unsigned histo_height{(MAXRGB + 1) * 2}, histo_width{(MAXRGB + 1) * 2}, bucketSize{2};
+
 	do_histogram(src, histo_height, histo_width, ROI_parameters, bucketSize);
 
 	tgt.resize(src.getNumberOfRows(), src.getNumberOfColumns());
@@ -584,17 +669,18 @@ void utility::thresh_histo_stretch(image &src, image &tgt, int T, int a1, int b1
 				if (pixel < T)
 				{
 					// dark pixels, use a1, b1
-					newVal = range_transform(pixel, a1, b1, 0, 255);
+					newVal = range_transform(pixel, a1, b1, MINRGB, T);
 				}
 				else // >= T bright pixels, use a2, b2
 				{
-					newVal = range_transform(pixel, a2, b2, 0, 255);
+					newVal = range_transform(pixel, a2, b2, T, MAXRGB);
 				}
 				// set new pixel value
 				tgt.setPixel(row, col, checkValue((int)newVal));
 			}
 		}
 
+	do_histogram(tgt, histo_height, histo_width, ROI_parameters, floor(histo_width / (b1 - a1)), true);
 }
 
 /*Project 2 Color functions*/
@@ -607,7 +693,7 @@ void utility::thresh_histo_stretch(image &src, image &tgt, int T, int a1, int b1
  	NOTE formula from wikipedia
 	H[0, 360] S and I [0, 1]
 
-	RGB range [0, 255]
+	RGB range [MINRGB, MAXRGB]
 */
 HSI_pixel utility::RGB_to_HSI(RGB_pixel in)
 {
@@ -703,7 +789,7 @@ HSI_pixel utility::RGB_to_HSI(RGB_pixel in)
 	S and I [0, 1] float
 
 	output:
-	RGB [0, 255] integer
+	RGB [MINRGB, MAXRGB] integer
 
 	using formula from wikipedia
 	https://en.wikipedia.org/wiki/HSL_and_HSV#HSI_to_RGB
@@ -719,9 +805,9 @@ RGB_pixel utility::HSI_to_RGB(HSI_pixel in)
 	// R = G = B = 0;
 
 	// make sure values are correct
-	H = check_value(in.H, 0.0, 360.0); 
-	S = check_value(in.S, 0.0, 1.0); 
-	I = check_value(in.I, 0.0, 1.0); 
+	H = check_value(in.H, MINHUE, MAXHUE); 
+	S = check_value(in.S, MINNORM, MAXNORM); 
+	I = check_value(in.I, MINNORM, MAXNORM); 
 
 	// SPECIAL CASES
 	// if (I == 0) return (RGB_pixel){.R = 0, .G = 0, .B = 0};
@@ -830,7 +916,7 @@ void utility::histo_stretch_RGB_single(image &src, image &tgt,
 
 	// make the histogram
 
-	unsigned histo_height{512}, histo_width{512}, bucketSize{2};
+	unsigned histo_height{(MAXRGB + 1) * 2}, histo_width{(MAXRGB + 1) * 2}, bucketSize{2};
 
 	do_histogram(src, histo_height, histo_width, ROI_parameters, bucketSize);
 
@@ -845,12 +931,20 @@ void utility::histo_stretch_RGB_single(image &src, image &tgt,
 				int pixel = src.getPixel(row, col, channel);
 
 				// get new pixel val and set
-				int newVal = range_transform(pixel, a1, b1, 0, 255);
+				int newVal = range_transform(pixel, a1, b1, MINRGB, MAXRGB);
 				tgt.setPixel(row, col, channel, checkValue((int)newVal));
+
+				// set other channels
+				for (int i = 0; i <= BLUE; ++i)
+				{
+					if (i != channel)
+						tgt.setPixel(row, col, i, checkValue(src.getPixel(row, col, channel)));
+				}
+
 			}
 		}
 
-	do_histogram(tgt, histo_height, histo_width, ROI_parameters, floor(histo_width / (b1 - a1)), true, 0, 255, channel);
+	do_histogram(tgt, histo_height, histo_width, ROI_parameters, floor(histo_width / (b1 - a1)), true, MINRGB, MAXRGB, channel);
 	
 }
 
@@ -876,7 +970,7 @@ void utility::histo_stretch_RGB_multi(image &src, image &tgt,
 
 	// make the histogram
 
-	unsigned histo_height{512}, histo_width{512}, bucketSize{2};
+	unsigned histo_height{(MAXRGB + 1) * 2}, histo_width{(MAXRGB + 1) * 2}, bucketSize{2};
 
 	// do_histogram(src, histo_height, histo_width, ROI_parameters, bucketSize);
 
@@ -893,9 +987,9 @@ void utility::histo_stretch_RGB_multi(image &src, image &tgt,
 				int pixelB = src.getPixel(row, col, BLUE);
 
 				// get new pixel val and set
-				int newValR = range_transform(pixelR, aR, bR, 0, 255);
-				int newValG = range_transform(pixelG, aG, bG, 0, 255);
-				int newValB = range_transform(pixelB, aB, bB, 0, 255);
+				int newValR = range_transform(pixelR, aR, bR, MINRGB, MAXRGB);
+				int newValG = range_transform(pixelG, aG, bG, MINRGB, MAXRGB);
+				int newValB = range_transform(pixelB, aB, bB, MINRGB, MAXRGB);
 
 				tgt.setPixel(row, col, RED, checkValue((int)newValR));
 				tgt.setPixel(row, col, GREEN, checkValue((int)newValG));
@@ -930,11 +1024,14 @@ void utility::histo_stretch_I(image &src, image &tgt,
 
 	// make the histogram
 
-	unsigned histo_height{512}, histo_width{512}, bucketSize{2};
+	unsigned histo_height{(int)MAXNORM * 500}, histo_width{(int)MAXNORM * 500}, bucketSize{1};
 
 	// do_histogram(src, histo_height, histo_width, ROI_parameters, bucketSize);
 
 	tgt.resize(src.getNumberOfRows(), src.getNumberOfColumns());
+
+	// use vectors to hold I channel values in ROI to generate histogram
+	vector<double> I, newI;
 
 	// now transform pixels and set tgt image
 	for (int row = Y; row < Y + Sy; ++row)
@@ -950,11 +1047,14 @@ void utility::histo_stretch_I(image &src, image &tgt,
 				// convert to HSI for stretching
 				HSI_pixel pixelConverted = RGB_to_HSI(RGB_pixel{.R=pixelR, .G=pixelG, .B=pixelB});
 
+				I.push_back(pixelConverted.I);
 
 				// strech HSI pixels
-				// double newValH = range_transform(pixelConverted.H, aH, bH, 0.0, 360.0);
-				// double newValS = range_transform(pixelConverted.S, aS, bS, 0.0, 1.0);
-				double newValI = range_transform(pixelConverted.I, a1, b1, 0.0, 1.0);
+				// double newValH = range_transform(pixelConverted.H, aH, bH, MINHUE, MAXHUE);
+				// double newValS = range_transform(pixelConverted.S, aS, bS, 0.MINNORM, MAXNORM);
+				double newValI = range_transform(pixelConverted.I, a1, b1, MINNORM, MAXNORM);
+
+				newI.push_back(newValI);
 
 				// convert back to RGB
 				RGB_pixel pixelModified = HSI_to_RGB(HSI_pixel{.H=pixelConverted.H, .S=pixelConverted.S, .I=newValI});
@@ -967,6 +1067,11 @@ void utility::histo_stretch_I(image &src, image &tgt,
 		}
 
 	// do_histogram(tgt, histo_height, histo_width, ROI_parameters, floor(histo_width / (b1 - a1)), true);
+
+	do_histogram(I, histo_height, histo_width, ROI_parameters, bucketSize, false, MINNORM, MAXNORM);
+	do_histogram(newI, histo_height, histo_width, ROI_parameters, bucketSize, true, MINNORM, MAXNORM);
+
+	
 	
 }
 
@@ -994,9 +1099,7 @@ void utility::histo_stretch_HSI(image &src, image &tgt,
 
 	// make the histogram
 
-	unsigned histo_height{512}, histo_width{512}, bucketSize{2};
-
-	// do_histogram(src, histo_height, histo_width, ROI_parameters, bucketSize);
+	vector<double> H, newH;
 
 	tgt.resize(src.getNumberOfRows(), src.getNumberOfColumns());
 
@@ -1016,9 +1119,12 @@ void utility::histo_stretch_HSI(image &src, image &tgt,
 
 
 				// strech HSI pixels
-				double newValH = range_transform(pixelConverted.H, aH, bH, 0.0, 360.0);
-				double newValS = range_transform(pixelConverted.S, aS, bS, 0.0, 1.0);
-				double newValI = range_transform(pixelConverted.I, aI, bI, 0.0, 1.0);
+				double newValH = range_transform(pixelConverted.H, aH, bH, MINHUE, MAXHUE);
+				double newValS = range_transform(pixelConverted.S, aS, bS, MINNORM, MAXNORM);
+				double newValI = range_transform(pixelConverted.I, aI, bI, MINNORM, MAXNORM);
+
+				H.push_back(pixelConverted.H);
+				newH.push_back(newValH);
 
 				// convert back to RGB
 				RGB_pixel pixelModified = HSI_to_RGB(HSI_pixel{.H=newValH, .S=newValS, .I=newValI});
@@ -1030,6 +1136,12 @@ void utility::histo_stretch_HSI(image &src, image &tgt,
 			}
 		}
 
-	// do_histogram(tgt, histo_height, histo_width, ROI_parameters, floor(histo_width / (b1 - a1)), true);
-	
+	do_histogram(H, 500, 500, ROI_parameters, 1, false, 0.0, 360.0);	
+	do_histogram(newH, 500, 500, ROI_parameters, 1, true, 0.0, 360.0);	
+}
+
+template <typename T>
+void utility::histo_stretch_vector(vector<T> * data, T a, T b)
+{
+
 }

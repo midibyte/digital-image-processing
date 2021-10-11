@@ -179,7 +179,12 @@ int main (int argc, char** argv)
 			ROI_parameters.Y = atoi(pch);
 
 			ROI_parameters.idxROI=idxROI;
-			sprintf(ROI_parameters.histogramName, "histogram_%s_ROI_%d.pgm",outfile, idxROI );
+			
+			char hName[MAXLEN];
+			strcpy(hName, outfile);
+			hName[strlen(hName) - 4] = '\0';
+
+			sprintf(ROI_parameters.histogramName, "HISTOGRAM_%s_ROI_%d.pgm",hName, idxROI );
 
 			if (debug > 0) printf("Sx, Sy, X, Y: %d, %d, %d, %d\n", ROI_parameters.Sx, ROI_parameters.Sy, ROI_parameters.X, ROI_parameters.Y );
 
@@ -302,7 +307,7 @@ int main (int argc, char** argv)
 	        /* histo_stretch ============================================*/
 	        else if (strncasecmp(function_name,"histo_stretch",MAXLEN)==0) 
 	        {
-	        	//get color values 
+
 				pch = strtok(NULL, " ");
 				int a1 = atoi(pch);
 				pch = strtok(NULL, " ");
@@ -316,7 +321,7 @@ int main (int argc, char** argv)
 	        /* thresh_histo_stretch ============================================*/
 	        else if (strncasecmp(function_name,"thresh_histo_stretch",MAXLEN)==0) 
 	        {
-	        	//get color values 
+
 	        	pch = strtok(NULL, " ");
 				int T = atoi(pch);
 				pch = strtok(NULL, " ");
@@ -331,6 +336,80 @@ int main (int argc, char** argv)
 				if (debug) printf("thresh_histo_stretch (T, a1, b1, a2, b2): (%d, %d, %d, %d, %d)\n", T, a1, b1, a2, b2);
 
 				utility::thresh_histo_stretch(src,tgt, T, a1, b1, a2, b2, ROI_parameters);
+			}
+
+	        /* stretch_RGB_single ============================================*/
+	        else if (strncasecmp(function_name,"stretch_RGB_single",MAXLEN)==0) 
+	        {
+
+				pch = strtok(NULL, " ");
+				int channel = atoi(pch);
+	        	pch = strtok(NULL, " ");
+				int a1 = atoi(pch);
+				pch = strtok(NULL, " ");
+				int b1 = atoi(pch);
+
+				if (debug) printf("stretch_RGB_single (channel, a1, b1): (%d, %d, %d)\n", channel, a1, b1);
+
+				utility::histo_stretch_RGB_single(src, tgt, a1, b1, channel, ROI_parameters);
+			}
+
+	        /* stretch_RGB_multi ============================================*/
+	        else if (strncasecmp(function_name,"stretch_RGB_multi",MAXLEN)==0) 
+	        {
+
+				pch = strtok(NULL, " ");
+				int aR = atoi(pch);
+				pch = strtok(NULL, " ");
+				int bR = atoi(pch);
+				pch = strtok(NULL, " ");
+				int aG = atoi(pch);
+				pch = strtok(NULL, " ");
+				int bG = atoi(pch);
+				pch = strtok(NULL, " ");
+				int aB = atoi(pch);
+				pch = strtok(NULL, " ");
+				int bB = atoi(pch);
+
+				if (debug) printf("thresh_histo_stretch (aR, bR, aG, bG, aB, bB): (%d, %d, %d, %d, %d, %d)\n", aR, bR, aG, bG, aB, bB);
+
+				utility::histo_stretch_RGB_multi(src,tgt, aR, bR, aG, bG, aB, bB, ROI_parameters);
+			}
+
+	        /* stretch_I ============================================*/
+	        else if (strncasecmp(function_name,"stretch_I",MAXLEN)==0) 
+	        {
+
+	        	pch = strtok(NULL, " ");
+				double a1 = atof(pch);
+				pch = strtok(NULL, " ");
+				double b1 = atof(pch);
+
+				if (debug) printf("stretch_I (a1, b1): (%f, %f)\n", a1, b1);
+
+				utility::histo_stretch_I(src, tgt, a1, b1, ROI_parameters);
+			}
+
+	        /* stretch_HSI ============================================*/
+	        else if (strncasecmp(function_name,"stretch_HSI",MAXLEN)==0) 
+	        {
+
+				pch = strtok(NULL, " ");
+				double aH = atof(pch);
+				pch = strtok(NULL, " ");
+				double bH = atof(pch);
+				pch = strtok(NULL, " ");
+				double aS = atof(pch);
+				pch = strtok(NULL, " ");
+				double bS = atof(pch);
+				pch = strtok(NULL, " ");
+				double aI = atof(pch);
+				pch = strtok(NULL, " ");
+				double bI = atof(pch);
+
+				if (debug) printf("thresh_histo_stretch (aH, bH, aS, bS, aI, bI): (%f, %f, %f, %f, %f, %f)\n", aH, bH, aS, bS, aI, bI);
+
+				utility::histo_stretch_HSI(src,tgt, aH, bH, aS, bS, aI, bI, ROI_parameters);
 			}
 
 			else {
