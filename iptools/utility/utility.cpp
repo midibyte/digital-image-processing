@@ -341,7 +341,7 @@ template <class T, class V>
 T range_transform(const V in, const V inMin, const V inMax, const T outMin, const T outMax)
 {
 
-	__float128 out, inRange, outRange;
+	double out, inRange, outRange;
 
 	inRange = inMax - inMin;
 
@@ -818,7 +818,7 @@ RGB_pixel utility::HSI_to_RGB(HSI_pixel in)
 	double h_dash, Z, chroma, X;
 
 	h_dash = H / 60.0; 	
-	Z = 1.0 - abs(fmod(h_dash, 2.0) - 1.0);
+	Z = 1.0 - fabs(fmod(h_dash, 2.0) - 1.0);
 	chroma = (3.0 * I * S) / (1.0 + Z);
 	X = chroma * Z;
 
