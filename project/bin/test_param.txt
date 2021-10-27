@@ -1,0 +1,1 @@
+./img/gallery.pgm ./result/gallery_smooth_test.pgm uniformSmoothing 1 1 1 400 374 11

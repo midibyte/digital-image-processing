@@ -7,3 +7,9 @@
 !*.*
 *.o
 *.pdf
+*.swp
+# exclude everything
+project/bin/result/*
+
+# exception to the rule
+!project/bin/result/.gitkeep 
