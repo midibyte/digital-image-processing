@@ -1,0 +1,5 @@
+gallery.pgm gallery_add125_2ROI.pgm add 2 300 700 200 10 -100 600 300 800 400 150
+gallery.pgm gallery_bin_2ROI.pgm binarize 2 500 800 200 10 100 600 800 800 100 80
+gallery.pgm gallery_smooth_2ROI.pgm uniformSmoothing 2 300 700 200 10 15 600 300 800 400 5
+miami.ppm miami_coloradd_3ROI.ppm colorMultiplicativeBrightness 3 300 300 100 100 1.75 600 80 500 500 0.35 800 125 10 800 2.0
+miami.ppm miami_colorBin_5ROI.ppm colorBinarize 5 300 300 15 15 100 100 100 100 300 300 400 400 110 110 110 110 300 300 800 400 110 110 110 110 150 150 720 720 100 100 100 100 200 200 600 50 100 100 100 100

@@ -1,0 +1,10 @@
+oldpaper.pgm oldpaper_T_stretch.pgm thresh_histo_stretch 1 148 208 336 459 170 90 160 171 190
+oldpaper.pgm oldpaper_stretch.pgm histo_stretch 1 148 208 336 459 90 190
+gallery.pgm gallery_h.pgm histo_stretch 3 557 914 915 16 0 90 569 300 221 618 120 255 180 330 30 12 0 79
+miami.ppm miami_I_stretch.ppm stretch_I 2 200 200 300 480 0.0 0.2 650 500 790 65 0.0 0.1
+miami.ppm miami_R_stretch.ppm stretch_RGB_single 2 200 200 300 480 0 0 50 650 500 790 65 0 127 200
+hackerman.ppm hackerman_RGB_stretch.ppm stretch_RGB_multi 1 280 520 20 30 40 200 30 180 69 169
+hackerman.ppm hackerman_HSI_stretch.ppm stretch_HSI 2 200 200 715 129 0 200 0.25 1.0 0.2 1.0 209 265 250 250 40 200 0.0 0.5 0.0 1.0
+hackerman.ppm hackerman_I_stretch.ppm stretch_I 3 366 452 32 24 0.0 0.66 166 166 452 135 0.5 1.0 221 206 706 121 0.4 1.0
+hackerman.ppm hackerman_RGB_stretch.ppm stretch_RGB_multi 1 356 515 156 66 0 150 0 255 0 150
+ad.ppm ad_I_stretch.ppm stretch_I 2 667 276 264 206 0.55 0.75 212 86 44 410 0.33 0.75
