@@ -1,66 +1,6 @@
 /************************************************************
- *															*
- * This sample project include three functions:				*
- * 1. Add intensity for gray-level image.					*
- *    Input: source image, output image name, value			*
- *															*
- * 2. Image thresholding: pixels will become black if the	*
- *    intensity is below the threshold, and white if above	*
- *    or equal the threhold.								*
- *    Input: source image, output image name, threshold		*
- *															*
- * 3. Image scaling: reduction/expansion of 2 for 			*
- *    the width and length. This project uses averaging 	*
- *    technique for reduction and pixel replication			*
- *    technique for expansion.								*
- *    Input: source image, output image name, scale factor	*
 
-
-	P0:
-
-		4. Dual threshold
-		
-		inputs: threshold T, Values V1, V2
-		if pixel intensity:
-			> T, set pixel to V1
-			< T, set pixel to V2
-			== T, do nothing
-
-	P1:
-		add ROI to functions (except scaling)
-			input file format: 
-				in_file out_file function ROI_count ROI_parameters
-
-			ROI_parameters format: (one for each ROI)
-				Size_X Size_Y coord_X coord_Y
-			NOTE: ROIs will be processed in order. if the next ROI overlaps the first, it will be skipped
-
-		COLOR
-
-			Implement uniform smoothing filter operation using square odd window size (WS). Implement adaptive processing when smoothing window is close to the ROI boundary by progressively reducing window size all the way to 3x3, then reduce to 3x2 (or 2x2 if close to the corner). [3 points]
-
-			3. Processing of Color Images
-			
-			a. multiplicative color brightness modification to your toolbox. Let value More-C be user defined threshold. Process each color channel: R1=R*More-C, G1=G+More-C, B1=B+More-C. Make sure (R1, G1, B1) are within allowable values. This function should operate within specified ROI with different parameters for each ROI. [1 points]
-			
-			b. color binarization option to your image processing toolbox. Let threshold TColor be user defined input parameter. TColor defined as a Euclidian distance from user defined color C (CR, CB, CG) in RGB space. Set all pixels within TColor distance to "red", between TColor and 2*TColor to “green” and the rest to "white". This function should operate within specified ROI with different parameters for each ROI. [4 points]
-	
-	P2:
-		gray level:
-			make histogram image
-			histogram stretching
-			histogram stretching with thresholding 
-
-		color:
-			histo-stretch one channel (RGB)
-			histo-stretch all RGB channels
-			RGB to HSI conversion
-			histo-stretch on I channel
-				output gray and color
-			
-			EXTRA
-				histo-stretch on HS
-				histo-stretch on HSI
+ * 	check included readme file for descriptions of functions and parameters
 
  *															*
  ************************************************************/
@@ -410,6 +350,26 @@ int main (int argc, char** argv)
 				if (debug) printf("thresh_histo_stretch (aH, bH, aS, bS, aI, bI): (%f, %f, %f, %f, %f, %f)\n", aH, bH, aS, bS, aI, bI);
 
 				utility::histo_stretch_HSI(src,tgt, aH, bH, aS, bS, aI, bI, ROI_parameters);
+			}
+
+			/* edge detect ============================================*/
+	        else if (strncasecmp(function_name,"stretch_HSI",MAXLEN)==0) 
+	        {
+
+				pch = strtok(NULL, " ");
+				int kernel_size = atoi(pch);
+
+				bool isColor = false;
+
+				// check input -- if color image, set the flag
+				if (strstr(infile, ".ppm") != NULL) 
+				{	/* PPM Color Image */
+					isColor = true;
+				}
+
+				if (debug) printf("edge_detect (kernel_size, color?): (%d, %s)\n", kernel_size, isColor?"true":"false");
+
+				utility::edge_detect(src,tgt, kernel_size, isColor, ROI_parameters);
 			}
 
 			else {

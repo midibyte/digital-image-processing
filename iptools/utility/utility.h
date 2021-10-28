@@ -90,6 +90,11 @@ class utility
 		template <typename T>
 		static void histo_stretch_vector(vector<T> * data, T a, T b);
 
+
+		// project 3
+
+		static void edge_detect(image &src, image &tgt, int kernel_size, bool isColor, ROI ROI_parameters);
+
 };
 
 #endif

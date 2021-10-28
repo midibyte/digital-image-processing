@@ -1145,3 +1145,72 @@ void utility::histo_stretch_vector(vector<T> * data, T a, T b)
 {
 
 }
+
+/*-----------------------------------------------------------------------**/
+// PROJECT 3
+/*-----------------------------------------------------------------------**/
+
+/*-----------------------------------------------------------------------**/
+void utility::edge_detect(image &src, image &tgt, int kernel_size, bool isColor, ROI ROI_parameters)
+{
+
+	//TODO
+	/* 
+		applies the sobel filter to the input image
+		computes: dx, dy, gradient amplitude, edge direction
+		kernel_size can ONLY be 3 or 5
+		IF a color image is used, the images is converted to HSI and the sobel filter is applied to the I channel
+		
+		outputs:
+			grayscale image representing the amplitude of the gradient operator
+			binary edge image derived from amplitude image by thresholding
+			binary edge image thresholded with direction information 
+				- option to display edges within range of degrees
+	 */
+
+
+		
+	// ROI variables
+	unsigned int Sx, Sy, X, Y;
+	Sx = ROI_parameters.Sx;
+	Sy = ROI_parameters.Sy;
+	X = ROI_parameters.X;
+	Y = ROI_parameters.Y;
+
+	// histogram vectors
+	vector<double> H, newH;
+
+	tgt.resize(src.getNumberOfRows(), src.getNumberOfColumns());
+
+	// now transform pixels and set tgt image
+	for (int row = Y; row < Y + Sy; ++row)
+		for (int col = X; col < X + Sx; ++col)
+		{
+			if(tgt.isInbounds(row, col))
+			{
+				if(isColor)
+				{
+					// get RGB pixels
+					int pixelR = src.getPixel(row, col, RED);
+					int pixelG = src.getPixel(row, col, GREEN);
+					int pixelB = src.getPixel(row, col, BLUE);
+
+					// convert to HSI -- only need I channel
+					HSI_pixel pixelConverted = RGB_to_HSI(RGB_pixel{.R=pixelR, .G=pixelG, .B=pixelB});
+				}
+
+				// grayscale image version 
+				else 
+				{
+
+				}
+
+
+			}
+		}
+
+	do_histogram(H, 500, 500, ROI_parameters, 1, false, 0.0, 360.0);	
+	do_histogram(newH, 500, 500, ROI_parameters, 1, true, 0.0, 360.0);	
+
+}
+
