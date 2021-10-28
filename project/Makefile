@@ -14,7 +14,7 @@ all: $(EXEC)
 
 test: 
 	(cd ../iptools; make)
-	g++ -std=c++11 -O3 -o $(BIN_DIR)$@ $@.cpp -L ../lib -l iptools
+	g++ -std=c++11 -g -O3 -o $(BIN_DIR)$@ $@.cpp -L ../lib -l iptools
 
 iptools:
 	(cd ../iptools; make)
@@ -26,7 +26,7 @@ clean:
 	find "../" -type f -name '*.o' -exec rm {} +
 
 
-DO_EXEC = g++ -std=c++11 -O3 -o $(BIN_DIR)$@ $@.cpp -L ../lib -l iptools
+DO_EXEC = g++ -std=c++11 -g -O3 -o $(BIN_DIR)$@ $@.cpp -L ../lib -l iptools
 
 #------ now compile
 $(EXEC):   		iptools

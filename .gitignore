@@ -13,3 +13,7 @@ project/bin/result/*
 
 # exception to the rule
 !project/bin/result/.gitkeep 
+
+*.dSYM
+*.a
+lib/libiptools.a

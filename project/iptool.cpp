@@ -353,7 +353,7 @@ int main (int argc, char** argv)
 			}
 
 			/* edge detect ============================================*/
-	        else if (strncasecmp(function_name,"stretch_HSI",MAXLEN)==0) 
+	        else if (strncasecmp(function_name,"edge_detect",MAXLEN)==0) 
 	        {
 
 				pch = strtok(NULL, " ");

@@ -1168,6 +1168,58 @@ void utility::edge_detect(image &src, image &tgt, int kernel_size, bool isColor,
 				- option to display edges within range of degrees
 	 */
 
+	/*
+		sobel kernels 
+
+		3 by 3
+		Gx 
+		1 0 -1
+		2 0 -2
+		1 0 -1
+
+		Gy
+		1 	2 	1
+		0 	0 	0
+		-1 -2 -1
+
+		G = sqrt( Gx^2 + Gy^2)
+
+		theta = atan2(Gy, Gx)
+
+		-> at each point in the image
+	*/
+
+	vector<vector<int>> sobel_3_Gx
+	{
+		{1, 0, -1},
+		{2, 0, -2},
+		{1, 0, -1}
+	};
+
+	vector<vector<int>> sobel_3_Gy
+	{
+		{1, 2, 1},
+		{0, 0, 0},
+		{-1, -2, -1}
+	};
+
+	vector<vector<int>> sobel_5_Gx
+	{
+		{2, 2, 4, 2, 2},
+		{1, 1, 2, 1, 1},
+		{0, 0, 0, 0, 0,},
+		{-1, -1, -2, -1, -1},
+		{-2, -2, -4, -2, -2}
+	};
+
+	vector<vector<int>> sobel_5_Gy
+	{
+		{2, 1, 0, -1, -2},
+		{2, 1, 0, -1, -2},
+		{4, 2, 0, -2, -4},
+		{2, 1, 0, -1, -2},
+		{2, 1, 0, -1, -2}
+	};
 
 		
 	// ROI variables
@@ -1178,39 +1230,87 @@ void utility::edge_detect(image &src, image &tgt, int kernel_size, bool isColor,
 	Y = ROI_parameters.Y;
 
 	// histogram vectors
-	vector<double> H, newH;
+	// vector<double> H, newH;
 
+	// setup target image
 	tgt.resize(src.getNumberOfRows(), src.getNumberOfColumns());
+
+	// offset from center of kernel window based on kernel size - bitshift division
+	int offset = kernel_size >> 1;
 
 	// now transform pixels and set tgt image
 	for (int row = Y; row < Y + Sy; ++row)
 		for (int col = X; col < X + Sx; ++col)
 		{
+			double Gx{0.0}, Gy{0.0}, G{0.0}, theta{0.0};
+
 			if(tgt.isInbounds(row, col))
 			{
-				if(isColor)
-				{
-					// get RGB pixels
-					int pixelR = src.getPixel(row, col, RED);
-					int pixelG = src.getPixel(row, col, GREEN);
-					int pixelB = src.getPixel(row, col, BLUE);
 
-					// convert to HSI -- only need I channel
-					HSI_pixel pixelConverted = RGB_to_HSI(RGB_pixel{.R=pixelR, .G=pixelG, .B=pixelB});
-				}
+				// process pixels for window
+				// iterate through pixels in window
+				// for each pixel, need to get each pixel in the window
+				for (int row_w = row - offset; row_w < row + offset; ++row_w)
+					for (int col_w = col - offset; col_w < col + offset; ++col_w)
+					{
+						// skip pixel if outside image
+						if (!tgt.isInbounds(row_w, col_w)) continue;
 
-				// grayscale image version 
-				else 
-				{
+						// color version
+						// I channel range [0.0 1.0]
+						if(isColor)
+						{
+							// get RGB pixels
+							int pixelR = src.getPixel(row, col, RED);
+							int pixelG = src.getPixel(row, col, GREEN);
+							int pixelB = src.getPixel(row, col, BLUE);
 
-				}
+							// convert to HSI -- only need I channel
+							HSI_pixel pixelConverted = RGB_to_HSI(RGB_pixel{.R=pixelR, .G=pixelG, .B=pixelB});
+						
+							double pixel = pixelConverted.I;
+
+							Gx += (kernel_size == 3) ? sobel_3_Gx[row_w][col_w] : sobel_5_Gx[row_w][col_w];
+							Gy += (kernel_size == 3) ? sobel_3_Gy[row_w][col_w] : sobel_5_Gy[row_w][col_w];
+
+						}
+
+						// grayscale image version 
+						// range [0 255]
+						else 
+						{
+							int pixel = src.getPixel(row, col);
+
+
+							// issue here ?
+							Gx += (kernel_size == 3) ? sobel_3_Gx[row_w][col_w] : sobel_5_Gx[row_w][col_w];
+							Gy += (kernel_size == 3) ? sobel_3_Gy[row_w][col_w] : sobel_5_Gy[row_w][col_w];
+
+						}
+
+					}
+
+				// after window processed, get new pixel value
+				// calculate gx and gy
+
+				Gx /= (kernel_size * kernel_size);
+				Gy /= (kernel_size * kernel_size);
+
+				G = sqrt(Gx*Gx + Gy*Gy);
+
+				theta = atan2(Gy, Gx);
+
+				// set pixel in tgt for edge image
+				// if derived from I channel, need to move to correct range 
+				int newPixel = (isColor) ? int(G * 255) : int(G);
 
 
 			}
 		}
 
-	do_histogram(H, 500, 500, ROI_parameters, 1, false, 0.0, 360.0);	
-	do_histogram(newH, 500, 500, ROI_parameters, 1, true, 0.0, 360.0);	
+	// histogram of hue channel
+	// do_histogram(H, 500, 500, ROI_parameters, 1, false, 0.0, 360.0);	
+	// do_histogram(newH, 500, 500, ROI_parameters, 1, true, 0.0, 360.0);	
 
 }
 

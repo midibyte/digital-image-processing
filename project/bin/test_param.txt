@@ -1,1 +1,1 @@
-./img/gallery.pgm ./result/gallery_smooth_test.pgm uniformSmoothing 1 1 1 400 374 11
+./img/gallery.pgm ./result/gallery_edges.pgm edge_detect 1 500 500 1 1 3
