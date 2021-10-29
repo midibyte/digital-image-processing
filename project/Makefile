@@ -9,6 +9,9 @@ BIN_DIR=bin/
 
 EXEC = iptool
 
+CCFLAGS = -std=c++11
+CCFLAGSDEBUG := -std=c++11 -g -Wall -pedantic -Wextra
+
 
 all: $(EXEC)
 
@@ -26,7 +29,7 @@ clean:
 	find "../" -type f -name '*.o' -exec rm {} +
 
 
-DO_EXEC = g++ -std=c++11 -g -O3 -o $(BIN_DIR)$@ $@.cpp -L ../lib -l iptools
+DO_EXEC = g++ $(CCFLAGS) -o $(BIN_DIR)$@ $@.cpp -L ../lib -l iptools
 
 #------ now compile
 $(EXEC):   		iptools

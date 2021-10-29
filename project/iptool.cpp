@@ -33,7 +33,7 @@ int main (int argc, char** argv)
 	char *pch;
 	// holds function name
 	char function_name[MAXLEN];
-	unsigned int count_ROI;
+	int count_ROI;
 	// debug options value
 	int debug = 0;
 

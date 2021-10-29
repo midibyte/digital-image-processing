@@ -9,10 +9,10 @@
 struct ROI
 {
 	// hold the size and location of the ROI
-	unsigned int Sx, Sy, X, Y;
+	int Sx, Sy, X, Y;
 	char histogramName[1024];
 	bool isModified = false;
-	unsigned int idxROI;
+	int idxROI;
 };
 
 struct HSI_pixel
