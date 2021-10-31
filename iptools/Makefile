@@ -9,7 +9,7 @@ OUT = ../lib/libiptools.a
 INCLUDES = -I. -I/usr/local/include -Iimage/  -Iutility/ -I/usr/include/c++/4.2.1 
 
 # C++ compiler flags (-g -O2 -Wall)
-CCFLAGS = -std=c++11
+CCFLAGS = -std=c++14 -g
 
 # compiler
 CCC = g++

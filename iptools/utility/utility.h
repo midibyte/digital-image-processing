@@ -10,6 +10,7 @@ struct ROI
 {
 	// hold the size and location of the ROI
 	int Sx, Sy, X, Y;
+	char ogImageName[1024];
 	char histogramName[1024];
 	bool isModified = false;
 	int idxROI;
@@ -94,6 +95,7 @@ class utility
 		// project 3
 
 		static void edge_detect(image &src, image &tgt, int kernel_size, bool isColor, ROI ROI_parameters);
+		static void edge_detect_binary(image &src, image &tgt, int kernel_size, int T, int angle, bool isColor, ROI ROI_parameters);
 
 };
 

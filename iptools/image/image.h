@@ -7,11 +7,13 @@
 
 using namespace std;
 
-enum channel{RED, GREEN, BLUE, HUE, SATURATION, INTENSITY, GREY=RED, GRAY=GREY};
+enum channel{RED, GREEN, BLUE, THETA, GRADIENT, GREY=RED, GRAY=GREY};
 
 struct imageData
 {
    vector<int>  redChannel, greenChannel, blueChannel; 
+   // stores extra pixel info when using edgedetect
+   vector<double> gradient, theta;
    int numRows, numColumns; 
 };
 
@@ -34,12 +36,20 @@ public:
    void setNumberOfColumns(int columns);
    void setPixel(const int row, const int col, const int value);
    void setPixel(const int row, const int col, const int rgb, const int value);
+
+   int rowColToIdx(const int row, const int col, const int colCount);
+
+   // template<typename T>
+   void setPixelMeta(const int row, const int col, const int channel, const double);
    
    int getPixel(const int row, const int col);
    int getPixel(const int row, const int col, const int rgb);
    int getNumberOfRows();
    int getNumberOfColumns(); 
    vector<int>* getChannel(int rgb);
+
+   // template<typename T>
+   double getPixelMeta(const int row, const int col, const int channel);
    
    bool setChannel(int rgb, vector<int> &channel);   
    bool save (char* file);

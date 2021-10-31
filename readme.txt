@@ -116,8 +116,12 @@ PROJECT 2 ******************************************************************
 
 PROJECT 3 *******************************************************************************
 
-	edge_detect kernel_size
-		applies the sobel filter to the input image
+	edge_detect kernel_size threshold angle
+		applies the sobel filter of size "kernel_size" to the input image
+		threshold and angle can be disabled with value -1
+		threshold range [0 255]
+		angle range [0 360]
+		angle displays edges within +-10 degrees of input
 		computes: dx, dy, gradient amplitude, edge direction
 		kernel_size can ONLY be 3 or 5
 		IF a color image is used, the images is converted to HSI and the sobel filter is applied to the I channel

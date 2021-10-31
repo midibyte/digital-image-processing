@@ -17,7 +17,7 @@ all: $(EXEC)
 
 test: 
 	(cd ../iptools; make)
-	g++ -std=c++11 -g -O3 -o $(BIN_DIR)$@ $@.cpp -L ../lib -l iptools
+	g++ -std=c++14 -g -O3 -o $(BIN_DIR)$@ $@.cpp -L ../lib -l iptools
 
 iptools:
 	(cd ../iptools; make)

@@ -13,6 +13,8 @@ image::image()
 	data.redChannel.clear();
 	data.greenChannel.clear();
 	data.blueChannel.clear();
+	data.gradient.clear();
+	data.theta.clear();
 }
 /*-----------------------------------------------------------------------**/
 image::image(image &img)
@@ -50,6 +52,9 @@ void image::deleteImage()
 	this->data.redChannel.clear();
 	this->data.greenChannel.clear();
 	this->data.blueChannel.clear();
+	this->data.gradient.clear();
+	this->data.theta.clear();
+
 }
 
 /*-----------------------------------------------------------------------**/
@@ -57,7 +62,7 @@ void image::copyImage(image &img)
 {
 	this->resize(img.getNumberOfRows() ,img.getNumberOfColumns());
 
-	for (int i = 0; i<3; i++) 
+	for (int i = 0; i<5; i++) 
 	{
 		this->setChannel(i, *img.getChannel(i));
 	}
@@ -73,10 +78,15 @@ void image::resize (int rows, int columns)
 	data.redChannel.clear();
 	data.greenChannel.clear();
 	data.blueChannel.clear();
+	data.gradient.clear();
+	data.theta.clear();
 
 	data.redChannel.resize(length); 
 	data.greenChannel.resize(length);
 	data.blueChannel.resize(length);
+	data.gradient.resize(length);
+	data.theta.resize(length);
+
 
 }
 
@@ -110,6 +120,40 @@ void image::setPixel(const int row, const int col, const int rgb, const int valu
 	}
 }
 
+int image::rowColToIdx(const int row, const int col, const int colCount)
+{
+	return row * colCount + col;
+}
+
+
+// template <typename T>
+void image::setPixelMeta(const int row, const int col, const int channel, const double value)
+{
+	switch (channel)
+	{
+	case GRADIENT:
+		data.gradient[rowColToIdx(row, col, data.numColumns)] = value;
+		break;
+	
+	case THETA: data.theta[rowColToIdx(row, col, data.numColumns)] = value;
+
+	default:
+		break;
+	}
+}
+
+// template<typename T>
+double image::getPixelMeta(const int row, const int col, const int channel)
+{
+	int idx = rowColToIdx(row, col, data.numColumns);
+
+	switch (channel)
+	{
+		case GRADIENT: return data.gradient[idx];
+		case THETA: return data.theta[idx];
+		default: return -1.0;
+	}
+}
 
 /*-------------------------------------------------------------------*/
 int image::getPixel(const int row, const int col) 

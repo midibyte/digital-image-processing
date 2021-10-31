@@ -17,3 +17,4 @@ project/bin/result/*
 *.dSYM
 *.a
 lib/libiptools.a
+*.DS_Store

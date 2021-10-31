@@ -1140,17 +1140,27 @@ void utility::histo_stretch_HSI(image &src, image &tgt,
 	do_histogram(newH, 500, 500, ROI_parameters, 1, true, 0.0, 360.0);	
 }
 
-template <typename T>
-void utility::histo_stretch_vector(vector<T> * data, T a, T b)
-{
+// template <typename T>
+// void utility::histo_stretch_vector(vector<T> * data, T a, T b)
+// {
 
-}
+// }
 
 /*-----------------------------------------------------------------------**/
 // PROJECT 3
 /*-----------------------------------------------------------------------**/
 
 /*-----------------------------------------------------------------------**/
+
+//index into vector using row, col
+// row*data.numColumns+col
+template <typename T>
+T getValFrom2DVec(std::vector<T> &data, int row, int col, int num_cols)
+{
+	int index = row * num_cols + col;
+	return data[index];
+}
+
 void utility::edge_detect(image &src, image &tgt, int kernel_size, bool isColor, ROI ROI_parameters)
 {
 
@@ -1221,94 +1231,121 @@ void utility::edge_detect(image &src, image &tgt, int kernel_size, bool isColor,
 	// offset from center of kernel window based on kernel size - bitshift division
 	int offset = kernel_size >> 1;
 
-	printf("kernel size, offset: %d %d\n", kernel_size, offset);
-
 	// now transform pixels and set tgt image
 	for (int row = Y; row < Y + Sy; ++row)
-		for (int col = X; col < X + Sx; ++col)
-		{
+	for (int col = X; col < X + Sx; ++col)
+	if(src.isInbounds(row, col))
+	{
+		double Gx{0.0}, Gy{0.0}, G{0.0}, theta{0.0};
+		// int kernel_row{0}, kernel_col{0};
+		int pixels_processed_count = 0;
 
-			//  if the pixel is inside the image 
-			if(src.isInbounds(row, col))
+		int row_w, col_w;
+		row_w = col_w = 0;
+
+		// process pixels for window
+		// iterate through pixels in window
+		// for each pixel, need to get each pixel in the window
+		for (int kernel_row = 0; kernel_row < kernel_size; ++kernel_row)
+			for (int kernel_col = 0; kernel_col < kernel_size; ++kernel_col)
 			{
-				double Gx{0.0}, Gy{0.0}, G{0.0}, theta{0.0};
-				// int kernel_row{0}, kernel_col{0};
-				int pixels_processed_count = 0;
+				row_w = row - (kernel_row - offset);
+				col_w = col - (kernel_col - offset);
+				
+				// if (!src.isInbounds(row_w, col_w)) printf("OUTOF BOUUNDS FOOL\n");
+				// ignore pixels in window that are outside image
+				if (!src.isInbounds(row_w, col_w)) continue;
 
-				int row_w, col_w;
-				row_w = col_w = 0;
+				// keep count of pixels processed inside window
+				pixels_processed_count += 1;
+				
+				if(isColor)
+				{
+					// get RGB pixels
+					int pixelR = src.getPixel(row_w, col_w, RED);
+					int pixelG = src.getPixel(row_w, col_w, GREEN);
+					int pixelB = src.getPixel(row_w, col_w, BLUE);
 
-				// process pixels for window
-				// iterate through pixels in window
-				// for each pixel, need to get each pixel in the window
-				for (int kernel_row = 0; kernel_row < kernel_size; ++kernel_row)
-					for (int kernel_col = 0; kernel_col < kernel_size; ++kernel_col)
-					{
-						row_w = row - (kernel_row - offset);
-						col_w = col - (kernel_col - offset);
-						
-						if (!src.isInbounds(row_w, col_w)) printf("OUTOF BOUUNDS FOOL\n");
-						if (!src.isInbounds(row_w, col_w)) continue;
+					// convert to HSI -- only need I channel
+					HSI_pixel pixelConverted = RGB_to_HSI(RGB_pixel{.R=pixelR, .G=pixelG, .B=pixelB});
+				
+					double pixel = pixelConverted.I;
 
-						pixels_processed_count += 1;
-						
-						// printf("row col: %d %d\n", row, col);
+					Gx += pixel * (double)kernel_x[kernel_row][kernel_col];
+					Gy += pixel * (double)kernel_y[kernel_row][kernel_col];
+				}
 
-						// printf("row_w col_w: %d %d\n", row_w, col_w);
-						// printf("kernel idx: %d %d\n", kernel_row, kernel_col);
-						// printf("kernel val: %d %d\n",sobel_3_Gx[kernel_row][kernel_col], sobel_3_Gy[kernel_row][kernel_col]);
+				// grayscale image version 
+				// range [0 255]
+				else 
+				{
+					int pixel = src.getPixel(row_w, col_w);
 
-						// color version
-						// I channel range [0.0 1.0]
-						if(isColor)
-						{
-							// get RGB pixels
-							int pixelR = src.getPixel(row_w, col_w, RED);
-							int pixelG = src.getPixel(row_w, col_w, GREEN);
-							int pixelB = src.getPixel(row_w, col_w, BLUE);
-
-							// convert to HSI -- only need I channel
-							HSI_pixel pixelConverted = RGB_to_HSI(RGB_pixel{.R=pixelR, .G=pixelG, .B=pixelB});
-						
-							double pixel = pixelConverted.I;
-
-							Gx += pixel * (double)kernel_x[kernel_row][kernel_col];
-							Gy += pixel * (double)kernel_y[kernel_row][kernel_col];
-						}
-
-						// grayscale image version 
-						// range [0 255]
-						else 
-						{
-							int pixel = src.getPixel(row_w, col_w);
-
-							Gx = Gx + ((double)pixel * (double)kernel_x[kernel_row][kernel_col]);
-							Gy = Gy + ((double)pixel * (double)kernel_y[kernel_row][kernel_col]);
-
-						}
-
-					}
-
-				// after window processed, get new pixel value
-				// calculate gx and gy
-				// printf("pixels processed in window: %d\n", pixels_processed_count);
-
-				// adjust so that range is [0 255] -> max value will be 4 * MAXRGB
-				Gx = Gx / 4;
-				Gy = Gy / 4;
-				G = sqrt(Gx*Gx + Gy*Gy);
-				theta = atan2(Gy, Gx);
-
-				// set pixel in tgt for edge image
-				// if derived from I channel, need to move to correct range 
-				int newPixel = G;
-				if (isColor) newPixel *= 255;
-
-				tgt.setPixel(row, col, newPixel);
-
-				// printf("newPixel, G, Gx, Gy, theta: %d, %f, %f, %f, %f\n", newPixel, G, Gx, Gy, theta);
+					Gx = Gx + ((double)pixel * (double)kernel_x[kernel_row][kernel_col]);
+					Gy = Gy + ((double)pixel * (double)kernel_y[kernel_row][kernel_col]);
+				}
 			}
-		}
 
+		// after window processed, get new pixel value
+		// calculate Gx and Gy, then G
+		// adjust so that range is [0 255] -> max value will be 4 * MAXRGB
+		Gx = Gx / 4;
+		Gy = Gy / 4;
+		G = sqrt(Gx*Gx + Gy*Gy);
+		theta = atan2(Gy, Gx);
+
+		// set pixel in tgt for edge image
+		// if derived from I channel, need to move to correct range 
+		int newPixel = G;
+		if (isColor) newPixel *= 255;
+
+		// set pixel in gradient image
+		tgt.setPixel(row, col, newPixel);
+		// set meta info in image class
+		tgt.setPixelMeta(row, col, GRADIENT, G);
+		tgt.setPixelMeta(row, col, THETA, theta);
+	}
 }
 
+
+// this function assumes that the image meta channels have 
+// been set by another function and are not empty
+void utility::edge_detect_binary(image &src, image &tgt, int kernel_size, int T, int angle, bool isColor, ROI ROI_parameters)
+{
+
+	// ROI variables
+	unsigned int Sx, Sy, X, Y;
+	Sx = ROI_parameters.Sx;
+	Sy = ROI_parameters.Sy;
+	X = ROI_parameters.X;
+	Y = ROI_parameters.Y;
+
+	image edgeImg(tgt);
+
+	// do edge detection sobel
+	edge_detect(src, edgeImg, kernel_size, isColor, ROI_parameters);
+	// binarize image in ROI
+	binarize(edgeImg, tgt, T, ROI_parameters);
+
+	// stop here if no angle requested
+	if(angle == -1) return;
+
+	// only do this part if an angle is requested
+	// iterate through pixels in ROI
+	// set pixels outside angle to black (0)
+	for (int row = Y; row < Y + Sy; ++row)
+	for (int col = X; col < X + Sx; ++col)
+	if (tgt.isInbounds(row, col))
+	{
+		// now do binary with angle info
+		// used angle info to only show edges at correct angle
+		double theta = edgeImg.getPixelMeta(row, col, THETA);
+		double degrees = ( theta * 180 ) / M_PI;
+
+		// if +- 10 degrees of requested angle
+		if (!(degrees > angle-10 && degrees < angle+10))
+		{
+			tgt.setPixel(row, col, 0);
+		}
+	}
+}
