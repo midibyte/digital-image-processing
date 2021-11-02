@@ -1,11 +1,14 @@
 #include "../iptools/core.h"
 #include <strings.h>
 #include <string.h>
+#include <opencv2/opencv.hpp>
+
 
 using namespace std;
 
 // maxlen of strings
 #define MAXLEN 1024
+#define TESTCOUNT 4
 
 // conversion tester
 
@@ -21,16 +24,16 @@ void RGB_HSI_tester()
 
     // set known correct values
 
-    unsigned int _R[testCount] = {61, 0, 222, 165};
-    unsigned int _G[testCount] = {254, 0, 74, 55};
-    unsigned int _B[testCount] = {164, 0, 40, 35};
+    unsigned int _R[TESTCOUNT] = {61, 0, 222, 165};
+    unsigned int _G[TESTCOUNT] = {254, 0, 74, 55};
+    unsigned int _B[TESTCOUNT] = {164, 0, 40, 35};
 
-    double _H[testCount] = {152, 0, 11, 9};
-    double _S[testCount] = {0.62, 0.0, 0.64, 0.59};
-    double _I[testCount] = {0.63, 0.0, 0.44, 0.33};
+    double _H[TESTCOUNT] = {152, 0, 11, 9};
+    double _S[TESTCOUNT] = {0.62, 0.0, 0.64, 0.59};
+    double _I[TESTCOUNT] = {0.63, 0.0, 0.44, 0.33};
 
 
-    for (int i = 0; i < testCount; ++ i)
+    for (int i = 0; i < TESTCOUNT; ++ i)
     {
         // unsigned int R[], G, B;
 
@@ -39,7 +42,7 @@ void RGB_HSI_tester()
         // R = rand() % 255;
         // G = rand() % 255;
         // B = rand() % 255;
-        unsigned int R, G, B;
+        int R, G, B;
         double H, S, I;
 
         R = _R[i];
@@ -82,5 +85,29 @@ int main (int argc, char** argv)
     RGB_HSI_tester();
 
 
-    return 0;
+    // return 0;
+
+
+    // read into image
+    image test;
+    char inFile[] = "./img/baboon.pgm";
+    test.read(inFile);
+
+    int rows = test.getNumberOfRows();
+    int cols = test.getNumberOfColumns();
+
+    // cv::Mat ocvImage(rows, cols, cv::int8_t);
+    cv::Mat cvImage = cv::imread(inFile, 0);
+    
+    std::cout << cvImage.rows << '\n' << cvImage.cols << "\n";
+
+    printf("%d %d\n", cvImage.rows, cvImage.cols);
+
+
+    // for (int row = 0; row < test.getNumberOfRows(); ++row)
+    // for (int col = 0; col < test.getNumberOfColumns(); ++col)
+    // {
+
+    // }
+
 }

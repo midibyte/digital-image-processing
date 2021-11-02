@@ -404,6 +404,33 @@ int main (int argc, char** argv)
 				utility::edge_detect_binary(src,tgt, kernel_size, T, angle, isColor, ROI_parameters);
 			}
 
+// +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+// ++++++++++++++++++++ openCV fuctions
+
+			else if (strncasecmp(function_name,"sobel_opencv",MAXLEN)==0) 
+	        {
+
+				pch = strtok(NULL, " ");
+				int kernel_size = atoi(pch);
+				// pch = strtok(NULL, " ");
+				// int T = atoi(pch);
+				// pch = strtok(NULL, " ");
+				// int angle = atoi(pch);
+
+				bool isColor = false;
+
+				// check input -- if color image, set the flag
+				if (strstr(infile, ".ppm") != NULL) 
+				{	/* PPM Color Image */
+					isColor = true;
+				}
+
+				// if (debug) printf("sobel_opencv (kernel_size, T, angle, color?): (%d, %d, %d, %s)\n", kernel_size, T, angle, isColor?"true":"false");
+				if (debug) printf("sobel_opencv (kernel_size, color?): (%d, %s)\n", kernel_size, isColor?"true":"false");
+
+				utility::sobel_opencv(src, tgt, kernel_size, isColor, ROI_parameters);
+			}
+
 			else {
 				printf("No function: %s\n", pch);
 				continue;

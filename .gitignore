@@ -18,3 +18,4 @@ project/bin/result/*
 *.a
 lib/libiptools.a
 *.DS_Store
+.vscode/**/*

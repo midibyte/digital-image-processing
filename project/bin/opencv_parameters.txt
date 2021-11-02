@@ -1,0 +1,2 @@
+./img/gallery.pgm ./result/gallery_sobel_cv.pgm sobel_opencv 1 500 500 1 1 3
+./img/wheelg.pgm ./result/wheelg_edges_sobel_cv.pgm sobel_opencv 1 200 200 0 0 3
