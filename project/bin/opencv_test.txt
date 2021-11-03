@@ -1,0 +1,3 @@
+./img/gallery.pgm ./result/gallery_sobelcv.pgm sobel_opencv 1 1500 1001 0 0 3 20 180
+./img/gallery.pgm ./result/gallery_cannycv.pgm canny_opencv 1 1500 1001 0 0 3 20 180
+./img/gallery.pgm ./result/gallery_bin_angle.pgm edge_detect_binary 1 1500 1001 0 0 3 20 180

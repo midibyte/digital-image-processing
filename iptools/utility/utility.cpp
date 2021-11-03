@@ -1241,56 +1241,58 @@ void utility::edge_detect(image &src, image &tgt, int kernel_size, bool isColor,
 		int pixels_processed_count = 0;
 
 		int row_w, col_w;
-		row_w = col_w = 0;
+		// row_w = col_w = 0;
 
 		// process pixels for window
 		// iterate through pixels in window
 		// for each pixel, need to get each pixel in the window
-		for (int kernel_row = 0; kernel_row < kernel_size; ++kernel_row)
-			for (int kernel_col = 0; kernel_col < kernel_size; ++kernel_col)
+		// for (int kernel_row = 0; kernel_row < kernel_size; ++kernel_row)
+		// for (int kernel_col = 0; kernel_col < kernel_size; ++kernel_col)
+		for (int kernel_row = 0, row_w = row - offset; kernel_row < kernel_size; ++kernel_row, ++row_w)
+		for (int kernel_col = 0, col_w = col - offset; kernel_col < kernel_size; ++kernel_col, ++col_w)
+		{
+			// row_w = row - (kernel_row - offset);
+			// col_w = col - (kernel_col - offset);
+			
+			// if (!src.isInbounds(row_w, col_w)) printf("OUTOF BOUUNDS FOOL\n");
+			// ignore pixels in window that are outside image
+			if (!src.isInbounds(row_w, col_w)) continue;
+
+			// keep count of pixels processed inside window
+			pixels_processed_count += 1;
+			
+			if(isColor)
 			{
-				row_w = row - (kernel_row - offset);
-				col_w = col - (kernel_col - offset);
-				
-				// if (!src.isInbounds(row_w, col_w)) printf("OUTOF BOUUNDS FOOL\n");
-				// ignore pixels in window that are outside image
-				if (!src.isInbounds(row_w, col_w)) continue;
+				// get RGB pixels
+				int pixelR = src.getPixel(row_w, col_w, RED);
+				int pixelG = src.getPixel(row_w, col_w, GREEN);
+				int pixelB = src.getPixel(row_w, col_w, BLUE);
 
-				// keep count of pixels processed inside window
-				pixels_processed_count += 1;
-				
-				if(isColor)
-				{
-					// get RGB pixels
-					int pixelR = src.getPixel(row_w, col_w, RED);
-					int pixelG = src.getPixel(row_w, col_w, GREEN);
-					int pixelB = src.getPixel(row_w, col_w, BLUE);
+				// convert to HSI -- only need I channel
+				HSI_pixel pixelConverted = RGB_to_HSI(RGB_pixel{.R=pixelR, .G=pixelG, .B=pixelB});
+			
+				double pixel = pixelConverted.I;
 
-					// convert to HSI -- only need I channel
-					HSI_pixel pixelConverted = RGB_to_HSI(RGB_pixel{.R=pixelR, .G=pixelG, .B=pixelB});
-				
-					double pixel = pixelConverted.I;
-
-					Gx = Gx + (pixel * (double)kernel_x[kernel_row][kernel_col]);
-					Gy = Gy +  (pixel * (double)kernel_y[kernel_row][kernel_col]);
-				}
-
-				// grayscale image version 
-				// range [0 255]
-				else 
-				{
-					int pixel = src.getPixel(row_w, col_w);
-
-					Gx = Gx + ((double)pixel * (double)kernel_x[kernel_row][kernel_col]);
-					Gy = Gy + ((double)pixel * (double)kernel_y[kernel_row][kernel_col]);
-				}
+				Gx = Gx + (pixel * (double)kernel_x[kernel_row][kernel_col]);
+				Gy = Gy +  (pixel * (double)kernel_y[kernel_row][kernel_col]);
 			}
+
+			// grayscale image version 
+			// range [0 255]
+			else 
+			{
+				int pixel = src.getPixel(row_w, col_w);
+
+				Gx = Gx + ((double)pixel * (double)kernel_x[kernel_row][kernel_col]);
+				Gy = Gy + ((double)pixel * (double)kernel_y[kernel_row][kernel_col]);
+			}
+		}
 
 		// after window processed, get new pixel value
 		// calculate Gx and Gy, then G
 		// adjust so that range is [0 255] -> max value will be 4 * MAXRGB
-		Gx = Gx / 4;
-		Gy = Gy / 4;
+		// Gx = Gx / 4;
+		// Gy = Gy / 4;
 		G = sqrt(Gx*Gx + Gy*Gy);
 		theta = atan2(Gy, Gx);
 

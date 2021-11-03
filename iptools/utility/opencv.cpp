@@ -4,6 +4,7 @@
 #include <opencv2/imgproc.hpp>
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/highgui.hpp>
+#include <limits.h>
 
 
 
@@ -38,7 +39,6 @@ void utility::sobel_opencv(image &src, image &tgt, int T, int angle, int kernel_
 {
     //implemented with opencv functions 
 
-    printf("inside sobel_opencv function\n");
 	// ROI variables
 	unsigned int Sx, Sy, X, Y;
 	Sx = ROI_parameters.Sx;
@@ -50,93 +50,149 @@ void utility::sobel_opencv(image &src, image &tgt, int T, int angle, int kernel_
     tgt.copyImage(src);
 
     // create a cv Mat the size of the ROI
-
-    // use CV_32S type for calculations, then convert back to CV_8U for display
-    cv::Mat roiMat(Sx, Sy, CV_32S);
-    // int matRow{0}, matCol{0};
-
-    // std::cout << roiMat.size() << '\n';
-    // std::cout << roiMat.type() << "\n";
+    // make sure Mat type is the same as input
+    cv::Mat_<int> roiMat(Sy, Sx);
 
     // copy pixels from ROI into cv Mat
-	for (int row = Y, matRow = 0; row < Y + Sy; ++row, ++matRow)
-    for (int col = X, matCol = 0; col < X + Sx; ++col, ++matCol)
+	for (int row = Y, matRow = 0; row < Y + Sy && matRow < roiMat.rows; ++row, ++matRow)
+    for (int col = X, matCol = 0; col < X + Sx && matCol < roiMat.cols; ++col, ++matCol)
     if(src.isInbounds(row, col))
     {
-        roiMat.at<int>(matRow, matCol) =  src.getPixel(row, col);
+        roiMat(matRow, matCol) =  src.getPixel(row, col);
     }
 
-    for (int row = Y, matRow = 0; row < Y + Sy; ++row, ++matRow)
-    for (int col = X, matCol = 0; col < X + Sx; ++col, ++matCol)
+    int count = 0;
+    int minRow, maxRow, minCol, maxCol;
+    minRow = maxRow = minCol = maxCol = -1;
+    for (int row = Y, matRow = 0; row < Y + Sy && matRow < roiMat.rows; ++row, ++matRow)
+    for (int col = X, matCol = 0; col < X + Sx && matCol < roiMat.cols; ++col, ++matCol)
     if(src.isInbounds(row, col))
     {
 
-        cv::Mat_<int> temp(roiMat);
+        // cv::Mat_<int> temp(roiMat);
         // printf("row, col. matRow, matCol: %d %d %d %d\n", row, col, matRow, matCol);
 
         // check if values are the same
-        if (src.getPixel(row, col) != temp(matRow, matCol))
-            printf("pixels not equal: vals = %d %d\n", src.getPixel(row, col), temp(matRow, matCol));
-    }
+        if (src.getPixel(row, col) != roiMat(matRow, matCol))
+        {
+            // printf("pixels not equal: vals = %d %d\n", src.getPixel(row, col), roiMat(matRow, matCol));
+            ++count;
+
+            if(minRow == -1) minRow = row;
+            if(minCol == -1) minCol = col;
+            if (maxCol < col) maxCol = col;
+            if (maxRow < row) maxRow = row;
+
+        }
+    }  
+
+    // printf("sobel pixels not equal count: %d\n", count);
+    // printf("bad pix region row col to row col: (%d %d) to (%d %d)\n", minRow, minCol, maxRow, maxCol);
 
     //set the kernel size
     int ksize = kernel_size;
     double delta = 0;
     double scale = 1.0;
 
-    roiMat.convertTo(roiMat, CV_32F);
+    // int ddepth = CV_64F;
+    int ddepth = -1;
 
-    int ddepth = CV_64F;
+    cv::Mat abs_grad_x, abs_grad_y, grad;
+    cv::Mat_<double> roiMat_double(roiMat);
+    cv::Mat_<double> grad_x, grad_y;
+    cv::Mat_<double> angles;
+    cv::Mat detected_edges_CV_8U;
 
-    using namespace cv;
+    // std::cout << "type of roiMat, gradx, grady: " << roiMat.type() << ", " << grad_x.type() << ", " << grad_y.type() << "\n";
 
-
-    cv::Mat grad_x, grad_y, grad;
-    cv::Mat abs_grad_x, abs_grad_y;
-
-    /// Gradient X
-    cv::Sobel(roiMat, grad_x, ddepth, 1, 0, ksize, scale, delta, cv::BORDER_DEFAULT);
-
-    /// Gradient Y
-    cv::Sobel(roiMat, grad_y, ddepth, 0, 1, ksize, scale, delta, cv::BORDER_DEFAULT);
-
-    //![convert]
-    // convert and scale gradient back to CV_8U
-    cv::convertScaleAbs(grad_x, abs_grad_x);
-    cv::convertScaleAbs(grad_y, abs_grad_y);
-    //![convert]
+    // Use sobel to get Gx Gy to later use to get angle 
+    // generate gradient x and y
+    cv::Sobel(roiMat_double, grad_x, ddepth, 1, 0, kernel_size, scale, delta, cv::BORDER_DEFAULT);
+    cv::Sobel(roiMat_double, grad_y, ddepth, 0, 1, kernel_size, scale, delta, cv::BORDER_DEFAULT);
 
     // std::cout << "after convertscaleabs, type of gradx absgradx: " << grad_x.type() << "  " << abs_grad_x.type() << "\n";
 
-    //![blend]
+    // // convert and scale gradient back to CV_8U
+    cv::convertScaleAbs(grad_x, abs_grad_x);
+    cv::convertScaleAbs(grad_y, abs_grad_y);
+
     /// Total Gradient (approximate)
+    // uint8 type output
     cv::addWeighted(abs_grad_x, 0.5, abs_grad_y, 0.5, 0, grad);
 
-    // std::cout << "addweightedtype: " << grad.type() << "\n";
-    //![blend]
-
-    // ![display]
-    // printf("test4\n");
-
-    // display image
+    // // display image
     // cv::imshow("window", grad);
-    // char key = (char)waitKey(0);
+    // char key = (char)cv::waitKey(0);
+
+    // opencv thresh
+    // only threhsold if T != -1
+    if ( T != -1)
+    {
+        cv::threshold(grad, grad, (double)T, UCHAR_MAX, cv::THRESH_BINARY);
+    }
+
+    // get angle in degrees at every pixel - only if needed
+    if (angle != -1)
+        cv::phase(grad_x, grad_y, angles, true);
+
+    // // display image
+    // cv::imshow("window", grad);
+    // key = (char)cv::waitKey(0);
+
 
     // printf("test5\n");
-    cv::Mat_<int> gradM(grad);
+    cv::Mat_<int> gradM;
+    cv::Mat_<int> grad_x_(abs_grad_x);
+    cv::Mat_<int> grad_y_(abs_grad_y);
 
-    // std::cout << gradM.type() << "\n";
 
     // if t != -1 output binary image
     // if t and angle != -1 output binary with angle restrction
+    // int minRow, maxRow, minCol, maxCol;
+    minRow = maxRow = minCol = maxCol = -1;
+
+    // std::cout << "gradM size: " << gradM.size() << "\n";
+    // printf("gradM rows, cols: %d %d\n",gradM.rows, gradM.cols );
+    // printf("ROI Sx Sy X Y endX endY: %d %d %d %d %d %d\n", Sx, Sy, X, Y, Sx+X, Sy+Y );
+
+
+    grad.convertTo(gradM, CV_32S);
 
     // copy results from Mat to image object
-    for (int row = Y, matRow = 0; row < Y + Sy && matRow < grad.rows; ++row, ++matRow)
-    for (int col = X, matCol = 0; col < X + Sx && matCol < grad.cols; ++col, ++matCol)
+    for (int row = Y, matRow = 0; row < Y + Sy && matRow < gradM.rows; ++row, ++matRow)
+    for (int col = X, matCol = 0; col < X + Sx && matCol < gradM.cols; ++col, ++matCol)
     if(src.isInbounds(row, col))
     {
-        tgt.setPixel(row, col, gradM(matRow, matCol));
+        // printf(" row, col matRow matCol inbounds?: %d %d %d %d %d\n", row, col, matRow, matCol, src.isInbounds(row, col));
+        if(minRow == -1) minRow = row;
+        if(minCol == -1) minCol = col;
+        if (maxCol < col) maxCol = col;
+        if (maxRow < row) maxRow = row;
+
+        int newPixel = gradM(matRow, matCol);
+
+        // double a = 0.0;
+        //calc angle 
+        if (angle != -1)
+        {
+            double a = angles(matRow, matCol);
+            // if angle out of range set pixel to black
+            if (a < angle - 10 || a > angle + 10)
+                newPixel = 0;
+        }
+
+        if(!isColor)
+            tgt.setPixel(row, col, newPixel);
+
+        else if (isColor)
+        {
+            tgt.setPixel(row, col, RED, newPixel);
+            tgt.setPixel(row, col, GREEN, newPixel);
+            tgt.setPixel(row, col, BLUE, newPixel);
+        }
     }
+    // printf("region set row col to row col: (%d %d) to (%d %d)\n", minRow, minCol, maxRow, maxCol);
+
 
 }
 
@@ -151,7 +207,6 @@ void utility::canny_opencv(image &src, image &tgt, int T, int angle, int kernel_
 {
     //implemented with opencv functions 
 
-    printf("inside canny_opencv function\n");
 	// ROI variables
 	unsigned int Sx, Sy, X, Y;
 	Sx = ROI_parameters.Sx;
@@ -162,108 +217,101 @@ void utility::canny_opencv(image &src, image &tgt, int T, int angle, int kernel_
     // copy src into tgt, then overwrite changed pixels from ROI
     tgt.copyImage(src);
 
-    // create a cv Mat the size of the ROI
-
-    // use CV_32S type for calculations, then convert back to CV_8U for display
-    cv::Mat roiMat(Sx, Sy, CV_32S);
-    // int matRow{0}, matCol{0};
-
-    // std::cout << roiMat.size() << '\n';
-    // std::cout << roiMat.type() << "\n";
+    // setup mat for ROI
+    cv::Mat_<int> roiMat(Sy, Sx);
 
     // copy pixels from ROI into cv Mat
 	for (int row = Y, matRow = 0; row < Y + Sy; ++row, ++matRow)
     for (int col = X, matCol = 0; col < X + Sx; ++col, ++matCol)
     if(src.isInbounds(row, col))
     {
-        roiMat.at<int>(matRow, matCol) =  src.getPixel(row, col);
+        roiMat(matRow, matCol) =  src.getPixel(row, col);
     }
+    // printf("bf check\n");
 
+    // test if pixels copied correctly
     for (int row = Y, matRow = 0; row < Y + Sy; ++row, ++matRow)
     for (int col = X, matCol = 0; col < X + Sx; ++col, ++matCol)
     if(src.isInbounds(row, col))
     {
-
-        cv::Mat_<int> temp(roiMat);
-        // printf("row, col. matRow, matCol: %d %d %d %d\n", row, col, matRow, matCol);
-
+        // cv::Mat_<int> temp(roiMat);
         // check if values are the same
-        if (src.getPixel(row, col) != temp(matRow, matCol))
-            printf("pixels not equal: vals = %d %d\n", src.getPixel(row, col), temp(matRow, matCol));
+        if (src.getPixel(row, col) != roiMat(matRow, matCol))
+            printf("canny pixels not equal: vals = %d %d\n", src.getPixel(row, col), roiMat(matRow, matCol));
     }
 
-    //set the kernel size
-    int ksize = kernel_size;
     double delta = 0;
     double scale = 1.0;
-
     // Canny ratio of lowerThreshold to upperThreshold recommended to be 3
     int ratio = 3;
     double T1, T2;
     T1 = (double)T;
+    if (T1 < 0) T1 = 0;
     T2 = T1 * (double)ratio;
 
+    // printf("bf roiMat convert\n");
+
+
     // convert input to please cv and for more precision during calculation
-    roiMat.convertTo(roiMat, CV_32F);
 
     // int ddepth = CV_64F;
-    int ddepth = CV_16SC1;
+    int ddepth = -1;
 
-    cv::Mat grad_x, grad_y, grad;
-    // cv::Mat abs_grad_x, abs_grad_y;
-    cv::Mat angles;
-    cv::Mat detected_edges, dst;
+    cv::Mat_<double> roiMat_double(roiMat);
+    cv::Mat_<double> grad_x, grad_y, grad;
+    cv::Mat_<double> angles;
+    cv::Mat detected_edges_CV_8U;
+    // printf("test b/f sobel\n");
+
+    // std::cout << "type of roiMat, gradx, grady: " << roiMat.type() << ", " << grad_x.type() << ", " << grad_y.type() << "\n";
 
     // Use sobel to get Gx Gy to later use to get angle 
     // generate gradient x and y
-    cv::Sobel(roiMat, grad_x, ddepth, 1, 0, ksize, scale, delta, cv::BORDER_DEFAULT);
-    cv::Sobel(roiMat, grad_y, ddepth, 0, 1, ksize, scale, delta, cv::BORDER_DEFAULT);
+    cv::Sobel(roiMat_double, grad_x, ddepth, 1, 0, kernel_size, scale, delta, cv::BORDER_DEFAULT);
+    cv::Sobel(roiMat_double, grad_y, ddepth, 0, 1, kernel_size, scale, delta, cv::BORDER_DEFAULT);
 
-    cv::Mat cannyEdges;
-
-    cannyEdges.create(roiMat.size(), CV_16SC1);
-    // std::cout << "canny out type before: " << cannyEdges.type() << "\n";
-    // std::cout << "gradx type " << grad_x.type() << "\n";
-
-
-
-    // now pass Gx Gy to Canny
     // output from Canny should be in 8-bit format
-    // inputs must be CV_16SC1 type
     // set output type for Canny
-    detected_edges.create(roiMat.size(), CV_8U);
+    cv::Mat src_CV_U8;
+    // printf("test 1\n");
+    cv::convertScaleAbs(roiMat, src_CV_U8);
+    detected_edges_CV_8U.create(roiMat.size(), CV_8U);
+
     // cv::Canny(grad_x, grad_y, cannyEdges, T1, T2);
     // makes the edge image with T
-    cv::Canny(detected_edges, detected_edges, T1, T2, kernel_size);
+    cv::Canny(src_CV_U8, detected_edges_CV_8U, T1, T2, kernel_size);
 
-    // std::cout << "canny out type:: " << detected_edges.type() << "\n";
+    // get angle in degrees at every pixel - only if needed
+    if (angle != -1)
+        cv::phase(grad_x, grad_y, angles, true);
 
+    // convert CV_U8 Mat to int Mat_
+    cv::Mat_<int> detected_edges_int;
+    detected_edges_CV_8U.convertTo(detected_edges_int, CV_32S);
 
-    // calculate angle from gradients - must be float type
-    grad_x.convertTo(grad_x, CV_64F);
-    grad_y.convertTo(grad_y, CV_64F);
-    angles.create(grad_x.size(), grad_x.type());
-
-    // get angle in degrees at ever pixel
-    cv::phase(grad_x, grad_y, angles, true);
-
-    //convert back to Mat_ type for easier accessing
-    // cv::convertScaleAbs(cannyEdges, detected_edges);
-
-    // equal to int type
-    detected_edges.convertTo(detected_edges, CV_32S);
-    cv::Mat_<int> gradM(detected_edges);
-
-    // std::cout << "gradient out, detected_edges type: "<< gradM.type() << ", " << detected_edges.type() << "\n";
-    // std::cout << "gradM, detected_edges size: " << gradM.size() << ", " << detected_edges.size() << "\n";
-
-    for (int row = Y, matRow = 0; row < Y + Sy && matRow < gradM.rows; ++row, ++matRow)
-    for (int col = X, matCol = 0; col < X + Sx && matCol < gradM.cols; ++col, ++matCol)
+    for (int row = Y, matRow = 0; row < Y + Sy && matRow < detected_edges_int.rows; ++row, ++matRow)
+    for (int col = X, matCol = 0; col < X + Sx && matCol < detected_edges_int.cols; ++col, ++matCol)
     if(src.isInbounds(row, col))
     {
-        // std::cout << "gradM value: " << gradM(matRow, matCol) << "\n";
-        tgt.setPixel(row, col, gradM(matRow, matCol));
-        // std::cout << "pixel value: " << tgt.getPixel(row, col) << "\n";
+        int newPixel = detected_edges_int(matRow, matCol);
+
+        // check angle if requested
+        if((angle != -1))
+        {
+            double a = angles(matRow, matCol);
+            // if angle out of range set pixel to black
+            if (a < angle - 10 || a > angle + 10)
+                newPixel = 0;
+        }
+
+        tgt.setPixel(row, col, newPixel);
+
+        if (isColor)
+        {
+            tgt.setPixel(row, col, RED, newPixel);
+            tgt.setPixel(row, col, GREEN, newPixel);
+            tgt.setPixel(row, col, BLUE, newPixel);
+        }
     }
 
     // copy Mat results back into tgt image type

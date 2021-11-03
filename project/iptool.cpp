@@ -12,7 +12,7 @@
 using namespace std;
 
 // maxlen of strings
-#define MAXLEN 1024
+#define MAXLEN 4096
 
 int main (int argc, char** argv)
 {
