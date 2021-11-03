@@ -1271,8 +1271,8 @@ void utility::edge_detect(image &src, image &tgt, int kernel_size, bool isColor,
 				
 					double pixel = pixelConverted.I;
 
-					Gx += pixel * (double)kernel_x[kernel_row][kernel_col];
-					Gy += pixel * (double)kernel_y[kernel_row][kernel_col];
+					Gx = Gx + (pixel * (double)kernel_x[kernel_row][kernel_col]);
+					Gy = Gy +  (pixel * (double)kernel_y[kernel_row][kernel_col]);
 				}
 
 				// grayscale image version 
@@ -1296,11 +1296,25 @@ void utility::edge_detect(image &src, image &tgt, int kernel_size, bool isColor,
 
 		// set pixel in tgt for edge image
 		// if derived from I channel, need to move to correct range 
-		int newPixel = G;
-		if (isColor) newPixel *= 255;
+		int newPixel;
+
+		if (isColor) newPixel = G * 255.0;
+
+		else
+			newPixel = G;
+
 
 		// set pixel in gradient image
+		if (isColor)
+		{
+			// printf("color new pixel %d\n", newPixel);
+			tgt.setPixel(row, col, RED, newPixel);
+			tgt.setPixel(row, col, GREEN, newPixel);
+			tgt.setPixel(row, col, BLUE, newPixel);
+		}
+		else
 		tgt.setPixel(row, col, newPixel);
+
 		// set meta info in image class
 		tgt.setPixelMeta(row, col, GRADIENT, G);
 		tgt.setPixelMeta(row, col, THETA, theta);
@@ -1327,6 +1341,23 @@ void utility::edge_detect_binary(image &src, image &tgt, int kernel_size, int T,
 	// binarize image in ROI
 	binarize(edgeImg, tgt, T, ROI_parameters);
 
+	// set pixel in gradient image for color input
+	if (isColor)
+	{
+		for (int row = Y; row < Y + Sy; ++row)
+		for (int col = X; col < X + Sx; ++col)
+		if (edgeImg.isInbounds(row, col))
+		{
+			int pixel = tgt.getPixel(row, col);
+			// printf("color new pixel %d\n", newPixel);
+			tgt.setPixel(row, col, RED, pixel);
+			tgt.setPixel(row, col, GREEN, pixel);
+			tgt.setPixel(row, col, BLUE, pixel);
+		}
+	}
+	// else
+	// tgt.setPixel(row, col, 0);
+
 	// stop here if no angle requested
 	if(angle == -1) return;
 
@@ -1345,6 +1376,15 @@ void utility::edge_detect_binary(image &src, image &tgt, int kernel_size, int T,
 		// if +- 10 degrees of requested angle
 		if (!(degrees > angle-10 && degrees < angle+10))
 		{
+			// set pixel in gradient image
+			if (isColor)
+			{
+				// printf("color new pixel %d\n", newPixel);
+				tgt.setPixel(row, col, RED, 0);
+				tgt.setPixel(row, col, GREEN, 0);
+				tgt.setPixel(row, col, BLUE, 0);
+			}
+			else
 			tgt.setPixel(row, col, 0);
 		}
 	}

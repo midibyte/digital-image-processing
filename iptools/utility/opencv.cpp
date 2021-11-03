@@ -55,8 +55,8 @@ void utility::sobel_opencv(image &src, image &tgt, int T, int angle, int kernel_
     cv::Mat roiMat(Sx, Sy, CV_32S);
     // int matRow{0}, matCol{0};
 
-    std::cout << roiMat.size() << '\n';
-    std::cout << roiMat.type() << "\n";
+    // std::cout << roiMat.size() << '\n';
+    // std::cout << roiMat.type() << "\n";
 
     // copy pixels from ROI into cv Mat
 	for (int row = Y, matRow = 0; row < Y + Sy; ++row, ++matRow)
@@ -106,13 +106,13 @@ void utility::sobel_opencv(image &src, image &tgt, int T, int angle, int kernel_
     cv::convertScaleAbs(grad_y, abs_grad_y);
     //![convert]
 
-    std::cout << "after convertscaleabs, type of gradx absgradx: " << grad_x.type() << "  " << abs_grad_x.type() << "\n";
+    // std::cout << "after convertscaleabs, type of gradx absgradx: " << grad_x.type() << "  " << abs_grad_x.type() << "\n";
 
     //![blend]
     /// Total Gradient (approximate)
     cv::addWeighted(abs_grad_x, 0.5, abs_grad_y, 0.5, 0, grad);
 
-    std::cout << "addweightedtype: " << grad.type() << "\n";
+    // std::cout << "addweightedtype: " << grad.type() << "\n";
     //![blend]
 
     // ![display]
@@ -125,7 +125,10 @@ void utility::sobel_opencv(image &src, image &tgt, int T, int angle, int kernel_
     // printf("test5\n");
     cv::Mat_<int> gradM(grad);
 
-    std::cout << gradM.type() << "\n";
+    // std::cout << gradM.type() << "\n";
+
+    // if t != -1 output binary image
+    // if t and angle != -1 output binary with angle restrction
 
     // copy results from Mat to image object
     for (int row = Y, matRow = 0; row < Y + Sy && matRow < grad.rows; ++row, ++matRow)
@@ -165,8 +168,8 @@ void utility::canny_opencv(image &src, image &tgt, int T, int angle, int kernel_
     cv::Mat roiMat(Sx, Sy, CV_32S);
     // int matRow{0}, matCol{0};
 
-    std::cout << roiMat.size() << '\n';
-    std::cout << roiMat.type() << "\n";
+    // std::cout << roiMat.size() << '\n';
+    // std::cout << roiMat.type() << "\n";
 
     // copy pixels from ROI into cv Mat
 	for (int row = Y, matRow = 0; row < Y + Sy; ++row, ++matRow)
@@ -219,8 +222,8 @@ void utility::canny_opencv(image &src, image &tgt, int T, int angle, int kernel_
     cv::Mat cannyEdges;
 
     cannyEdges.create(roiMat.size(), CV_16SC1);
-    std::cout << "canny out type before: " << cannyEdges.type() << "\n";
-    std::cout << "gradx type " << grad_x.type() << "\n";
+    // std::cout << "canny out type before: " << cannyEdges.type() << "\n";
+    // std::cout << "gradx type " << grad_x.type() << "\n";
 
 
 
@@ -233,7 +236,7 @@ void utility::canny_opencv(image &src, image &tgt, int T, int angle, int kernel_
     // makes the edge image with T
     cv::Canny(detected_edges, detected_edges, T1, T2, kernel_size);
 
-    std::cout << "canny out type:: " << detected_edges.type() << "\n";
+    // std::cout << "canny out type:: " << detected_edges.type() << "\n";
 
 
     // calculate angle from gradients - must be float type
@@ -251,16 +254,16 @@ void utility::canny_opencv(image &src, image &tgt, int T, int angle, int kernel_
     detected_edges.convertTo(detected_edges, CV_32S);
     cv::Mat_<int> gradM(detected_edges);
 
-    std::cout << "gradient out, detected_edges type: "<< gradM.type() << ", " << detected_edges.type() << "\n";
-    std::cout << "gradM, detected_edges size: " << gradM.size() << ", " << detected_edges.size() << "\n";
+    // std::cout << "gradient out, detected_edges type: "<< gradM.type() << ", " << detected_edges.type() << "\n";
+    // std::cout << "gradM, detected_edges size: " << gradM.size() << ", " << detected_edges.size() << "\n";
 
     for (int row = Y, matRow = 0; row < Y + Sy && matRow < gradM.rows; ++row, ++matRow)
     for (int col = X, matCol = 0; col < X + Sx && matCol < gradM.cols; ++col, ++matCol)
     if(src.isInbounds(row, col))
     {
-        std::cout << "gradM value: " << gradM(matRow, matCol) << "\n";
+        // std::cout << "gradM value: " << gradM(matRow, matCol) << "\n";
         tgt.setPixel(row, col, gradM(matRow, matCol));
-        std::cout << "pixel value: " << tgt.getPixel(row, col) << "\n";
+        // std::cout << "pixel value: " << tgt.getPixel(row, col) << "\n";
     }
 
     // copy Mat results back into tgt image type

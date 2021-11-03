@@ -2,3 +2,6 @@
 ./img/gallery.pgm ./result/gallery_canny_cv.pgm canny_opencv 1 500 500 1 1 3 100 -1
 ./img/wheelg.pgm ./result/wheelg_edges_sobel_cv.pgm sobel_opencv 1 200 200 0 0 3 -1 -1
 ./img/wheelg.pgm ./result/wheelg_edges_canny_cv.pgm canny_opencv 1 200 200 0 0 3 20 -1
+./img/gallery.pgm ./result/gallery_edges.pgm edge_detect 1 500 500 1 1 3
+./img/miami.ppm ./result/miami_edges.ppm edge_detect 1 500 500 1 1 3
+./img/miami.ppm ./result/miami_edges_bin.ppm edge_detect_binary 1 500 500 1 1 3 20 -1
