@@ -14,6 +14,7 @@ struct ROI
 	char histogramName[1024];
 	bool isModified = false;
 	int idxROI;
+	int option;
 };
 
 struct HSI_pixel
@@ -96,7 +97,10 @@ class utility
 
 		static void edge_detect(image &src, image &tgt, int kernel_size, bool isColor, ROI ROI_parameters);
 		static void edge_detect_binary(image &src, image &tgt, int kernel_size, int T, int angle, bool isColor, ROI ROI_parameters);
-		static void sobel_opencv(image &src, image &tgt, int kernel_size, bool isColor, ROI ROI_parameters);
+
+		// funcitons using opencv
+		static void sobel_opencv(image &src, image &tgt, int T, int angle, int kernel_size, bool isColor, ROI ROI_parameters);
+		static void canny_opencv(image &src, image &tgt, int T, int angle, int kernel_size, bool isColor, ROI ROI_parameters);
 
 };
 

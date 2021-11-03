@@ -116,47 +116,78 @@ PROJECT 2 ******************************************************************
 
 PROJECT 3 *******************************************************************************
 
-	edge_detect kernel_size threshold angle
+	edge_detect kernel_size
+		NOTE: kernel_size can ONLY be 3 or 5
+		uses the sobel filter of size "kernel_size"
+		outputs gradient image only
+		gradient is the combined Gx Gy gradients
+
+	edge_detect_binary kernel_size threshold angle
 		applies the sobel filter of size "kernel_size" to the input image
-		threshold and angle can be disabled with value -1
 		threshold range [0 255]
 		angle range [0 360]
 		angle displays edges within +-10 degrees of input
+		NOTE: disable angle by setting angle = -1 in parameters
 		computes: dx, dy, gradient amplitude, edge direction
 		kernel_size can ONLY be 3 or 5
 		IF a color image is used, the images is converted to HSI and the sobel filter is applied to the I channel
+		the resulting image will be grayscale
 		
 		outputs:
-			grayscale image representing the amplitude of the gradient operator
-			binary edge image derived from amplitude image by thresholding
-			binary edge image thresholded with direction information 
-				- option to display edges within range of degrees
+			a binary image thresholded with threshold T
+			NOTE: if angle != -1, only edges +- 10 degrees of input are shown
+			NOTE: only one output image is produced. 
+				Use different combinations of inputs to get desired output
 				
 
 
 			
-	QR_code 
-		OpenCV???
+
 		
-	OpenCV Functions **********************
+	OpenCV Functions ***************************************************************
 	
-	sobel_CV kernel_size
-		replicates the sobel implementation above
-		kernel_size is either 3 or 5
+	sobel_opencv kernel_size T angle
+		uses the sobel filter for edge detection
+		input ranges:
+			threshold T range [0 255]
+			angle range [0 360]
+			kernel_size MUST be 3 or 5
+		output options:
+			T = -1 angle = -1
+				outputs gradient image 
+			T = value, angle = -1
+				outputs gradient image with binarizaiton with threshold T
+			T = value, angle = value
+				binary gradient image using threshold T, shows only angles +- 10 of input angle value
 		
-	canny_CV kernel_size
-		kernel_size is either 3 or 5
+		
+	canny_opencv kernel_size T angle
+		uses the canny filter for edge detection
+		input ranges:
+			threshold T range [0 255]
+			angle range [0 360]
+			kernel_size MUST be 3 or 5
+		output options:
+			T = -1 angle = -1
+				outputs gradient image 
+			T = value, angle = -1
+				outputs gradient image with binarizaiton with threshold T
+			T = value, angle = value
+				binary gradient image using threshold T, shows only angles +- 10 of input angle value
 	
 	histogramEqualize_CV
 	
 	otsu_CV
 	
 	histogramEqualizeForeground_otsu_CV
-	
+
+	EXTRA
 	edges_full_color
 		uses OpenCV, convert RGB to HSV
 		apply canny to each HSV channel separately
 	
+	QR_code 
+		OpenCV???
 		 
 
 *** PARAMETERS FILE *********************************************************************
