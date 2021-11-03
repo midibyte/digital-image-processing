@@ -175,11 +175,20 @@ PROJECT 3 **********************************************************************
 			T = value, angle = value
 				binary gradient image using threshold T, shows only angles +- 10 of input angle value
 	
-	histogramEqualize_CV
+	otsu_opencv
+		takes no input 
+		uses the opencv threshold function with the otsu binary option 
 	
-	otsu_CV
-	
-	histogramEqualizeForeground_otsu_CV
+	equalize_foreground_otsu_opencv
+		takes no input 
+		uses otsu to find the threshold value
+		selects all the pixels above the threshold, 
+		and only applies the opencv histogram equalization function to those values
+		then uses the following logic:
+			if a pixel is >= threshold, set pixel to equalized value 
+			else, set to original value 
+
+	equalize_opencv 
 
 	EXTRA
 	edges_full_color
@@ -210,8 +219,9 @@ RUNNING THE PROGRAM ************************************************************
 	where parameters.txt can be any name corresponding to your parameters file
 	NOTE:
 		can use: 
-		./iptool parameters.txt 1
-		to print debug strings to console
+		./iptool parameters.txt debug_val
+		1 = print debug strings to console
+		2 = use print time measurements
 
 PROGRAM LOGIC *********************************************************************
 

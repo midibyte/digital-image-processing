@@ -1,3 +1,7 @@
 ./img/gallery.pgm ./result/gallery_sobelcv.pgm sobel_opencv 1 1500 1001 0 0 3 20 180
 ./img/gallery.pgm ./result/gallery_cannycv.pgm canny_opencv 1 1500 1001 0 0 3 20 180
 ./img/gallery.pgm ./result/gallery_bin_angle.pgm edge_detect_binary 1 1500 1001 0 0 3 20 180
+./img/gallery.pgm ./result/gallery_otsu.pgm otsu_opencv 1 1500 1001 0 0
+./img/gallery.pgm ./result/gallery_binary.pgm binarize 1 1500 1001 0 0 123
+./img/gallery.pgm ./result/gallery_fg_otsu.pgm equalize_foreground_otsu_opencv 1 1500 1001 0 0
+./img/gallery.pgm ./result/gallery_equalize.pgm equalize_opencv 1 1500 1001 0 0

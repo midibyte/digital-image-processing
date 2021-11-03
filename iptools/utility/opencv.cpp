@@ -316,3 +316,296 @@ void utility::canny_opencv(image &src, image &tgt, int T, int angle, int kernel_
 
     // copy Mat results back into tgt image type
 }
+
+void utility::otsu_opencv(image &src, image &tgt, bool isColor, ROI ROI_parameters)
+{
+    //implemented with opencv functions 
+
+	// ROI variables
+	unsigned int Sx, Sy, X, Y;
+	Sx = ROI_parameters.Sx;
+	Sy = ROI_parameters.Sy;
+	X = ROI_parameters.X;
+	Y = ROI_parameters.Y;
+
+    // copy src into tgt, then overwrite changed pixels from ROI
+    tgt.copyImage(src);
+
+    // setup mat for ROI
+    cv::Mat_<int> roiMat(Sy, Sx);
+
+    // copy pixels from ROI into cv Mat
+	for (int row = Y, matRow = 0; row < Y + Sy; ++row, ++matRow)
+    for (int col = X, matCol = 0; col < X + Sx; ++col, ++matCol)
+    if(src.isInbounds(row, col))
+    {
+        roiMat(matRow, matCol) =  src.getPixel(row, col);
+    }
+
+    // convert input to 8bit 
+    cv::Mat roiMat_CV_8U, otsu_result_CV_8U;
+    cv::convertScaleAbs(roiMat, roiMat_CV_8U);
+
+    // roiMat.convertTo(roiMat_CV_8U, CV_8U)
+
+    // do binary otsu here
+    int otsu_threshold;
+    otsu_threshold = cv::threshold(roiMat_CV_8U, otsu_result_CV_8U, 0, 255, cv::THRESH_BINARY | cv::THRESH_OTSU);
+
+    // convert CV_U8 Mat to int Mat_
+    cv::Mat_<int> otsu_result_int;
+    otsu_result_CV_8U.convertTo(otsu_result_int, CV_32S);
+
+    // printf("Otsu calculated threshold value: %d\n", otsu_threshold);
+
+    for (int row = Y, matRow = 0; row < Y + Sy && matRow < otsu_result_int.rows; ++row, ++matRow)
+    for (int col = X, matCol = 0; col < X + Sx && matCol < otsu_result_int.cols; ++col, ++matCol)
+    if(src.isInbounds(row, col))
+    {
+        int newPixel = otsu_result_int(matRow, matCol);
+
+
+        if (isColor)
+        {
+            tgt.setPixel(row, col, RED, newPixel);
+            tgt.setPixel(row, col, GREEN, newPixel);
+            tgt.setPixel(row, col, BLUE, newPixel);
+        }
+
+        else 
+            tgt.setPixel(row, col, newPixel);
+
+    }
+}
+
+void utility::equalize_foreground_otsu_opencv_alt(image &src, image &tgt, bool isColor, ROI ROI_parameters)
+{
+    //implemented with opencv functions 
+
+
+	// ROI variables
+	unsigned int Sx, Sy, X, Y;
+	Sx = ROI_parameters.Sx;
+	Sy = ROI_parameters.Sy;
+	X = ROI_parameters.X;
+	Y = ROI_parameters.Y;
+
+    // copy src into tgt, then overwrite changed pixels from ROI
+    tgt.copyImage(src);
+
+    // setup mat for ROI
+    cv::Mat_<int> roiMat(Sy, Sx);
+
+    // copy pixels from ROI into cv Mat
+	for (int row = Y, matRow = 0; row < Y + Sy; ++row, ++matRow)
+    for (int col = X, matCol = 0; col < X + Sx; ++col, ++matCol)
+    if(src.isInbounds(row, col))
+    {
+        roiMat(matRow, matCol) =  src.getPixel(row, col);
+    }
+
+    // convert input to 8bit 
+    cv::Mat roiMat_CV_8U, otsu_result_CV_8U;
+    cv::convertScaleAbs(roiMat, roiMat_CV_8U);
+
+    // roiMat.convertTo(roiMat_CV_8U, CV_8U)
+
+    // do binary otsu here
+    int otsu_threshold;
+    otsu_threshold = cv::threshold(roiMat_CV_8U, otsu_result_CV_8U, 0, 255, cv::THRESH_BINARY | cv::THRESH_OTSU);
+
+
+
+
+    // convert CV_U8 Mat to int Mat_
+    cv::Mat_<int> otsu_result_int;
+    otsu_result_CV_8U.convertTo(otsu_result_int, CV_32S);
+
+    // equalize histogram only on foreground
+    // get only pixels above threshold and add to new mat
+    std::vector<int> foreground;
+    unsigned long int foregroundCount = 0;
+
+    for (int matRow = 0; matRow < otsu_result_int.rows;  ++matRow)
+    for (int matCol = 0; matCol < otsu_result_int.cols; ++matCol)
+    {
+        
+        if (roiMat(matRow, matCol) >= otsu_threshold)
+        {
+            foreground.push_back(roiMat(matRow, matCol));
+            ++foregroundCount;
+        }
+    }
+
+    cv::Mat foreground_CV_8U, foreground_equalized_CV_8U;
+
+    cv::Mat temp(foreground);
+    temp.convertTo(foreground_CV_8U, CV_8U);
+
+    cv::equalizeHist(foreground_CV_8U, foreground_equalized_CV_8U);
+
+    // convert CV_U8 Mat to int Mat_
+    cv::Mat_<int> foreground_equalized_int;
+    foreground_equalized_CV_8U.convertTo(foreground_equalized_int, CV_32S);
+
+    // printf("Otsu calculated threshold value: %d\n", otsu_threshold);
+
+    unsigned long int fgPixel = 0;
+
+    for (int row = Y, matRow = 0; row < Y + Sy && matRow < otsu_result_int.rows; ++row, ++matRow)
+    for (int col = X, matCol = 0; col < X + Sx && matCol < otsu_result_int.cols; ++col, ++matCol)
+    if(src.isInbounds(row, col))
+    {
+        int newPixel = roiMat(matRow, matCol);
+
+        if (roiMat(matRow, matCol) >= otsu_threshold && foregroundCount != 0)
+            {
+                newPixel = foreground_equalized_int(fgPixel);
+                ++fgPixel;
+                --foregroundCount;
+            }
+
+        if (isColor)
+        {
+            tgt.setPixel(row, col, RED, newPixel);
+            tgt.setPixel(row, col, GREEN, newPixel);
+            tgt.setPixel(row, col, BLUE, newPixel);
+        }
+
+        else 
+            tgt.setPixel(row, col, newPixel);
+
+    }
+}
+
+void utility::equalize_opencv(image &src, image &tgt, bool isColor, ROI ROI_parameters)
+{
+        //implemented with opencv functions 
+
+	// ROI variables
+	unsigned int Sx, Sy, X, Y;
+	Sx = ROI_parameters.Sx;
+	Sy = ROI_parameters.Sy;
+	X = ROI_parameters.X;
+	Y = ROI_parameters.Y;
+
+    // copy src into tgt, then overwrite changed pixels from ROI
+    tgt.copyImage(src);
+
+    // setup mat for ROI
+    cv::Mat_<int> roiMat(Sy, Sx);
+
+    // copy pixels from ROI into cv Mat
+	for (int row = Y, matRow = 0; row < Y + Sy; ++row, ++matRow)
+    for (int col = X, matCol = 0; col < X + Sx; ++col, ++matCol)
+    if(src.isInbounds(row, col))
+    {
+        roiMat(matRow, matCol) =  src.getPixel(row, col);
+    }
+
+    // convert input to 8bit 
+    cv::Mat roiMat_CV_8U, equalized_CV_8U;
+    cv::convertScaleAbs(roiMat, roiMat_CV_8U);
+
+    cv::equalizeHist(roiMat_CV_8U, equalized_CV_8U);
+
+    // convert CV_U8 Mat to int Mat_
+    cv::Mat_<int> equalized_int;
+    equalized_CV_8U.convertTo(equalized_int, CV_32S);
+
+
+    unsigned long int fgPixel = 0;
+
+    for (int row = Y, matRow = 0; row < Y + Sy && matRow < equalized_int.rows; ++row, ++matRow)
+    for (int col = X, matCol = 0; col < X + Sx && matCol < equalized_int.cols; ++col, ++matCol)
+    if(src.isInbounds(row, col))
+    {
+        int newPixel = equalized_int(matRow, matCol);
+
+        if (isColor)
+        {
+            tgt.setPixel(row, col, RED, newPixel);
+            tgt.setPixel(row, col, GREEN, newPixel);
+            tgt.setPixel(row, col, BLUE, newPixel);
+        }
+
+        else 
+            tgt.setPixel(row, col, newPixel);
+
+    }
+}
+
+void utility::equalize_foreground_otsu_opencv(image &src, image &tgt, bool isColor, ROI ROI_parameters)
+{
+    //implemented with opencv functions 
+
+	// ROI variables
+	unsigned int Sx, Sy, X, Y;
+	Sx = ROI_parameters.Sx;
+	Sy = ROI_parameters.Sy;
+	X = ROI_parameters.X;
+	Y = ROI_parameters.Y;
+
+    // copy src into tgt, then overwrite changed pixels from ROI
+    tgt.copyImage(src);
+    image equalized(src);
+
+    // equalize
+    utility::equalize_opencv(src, equalized, isColor, ROI_parameters);
+
+    // setup mat for ROI
+    cv::Mat_<int> roiMat(Sy, Sx);
+
+    // copy pixels from ROI into cv Mat
+	for (int row = Y, matRow = 0; row < Y + Sy; ++row, ++matRow)
+    for (int col = X, matCol = 0; col < X + Sx; ++col, ++matCol)
+    if(src.isInbounds(row, col))
+    {
+        roiMat(matRow, matCol) =  src.getPixel(row, col);
+    }
+
+    // convert input to 8bit 
+    cv::Mat roiMat_CV_8U, otsu_result_CV_8U;
+    cv::convertScaleAbs(roiMat, roiMat_CV_8U);
+
+    // roiMat.convertTo(roiMat_CV_8U, CV_8U)
+
+    // do binary otsu here
+    int otsu_threshold;
+    otsu_threshold = cv::threshold(roiMat_CV_8U, otsu_result_CV_8U, 0, 255, cv::THRESH_BINARY | cv::THRESH_OTSU);
+
+
+
+    // printf("Otsu calculated threshold value: %d\n", otsu_threshold);
+
+    // use otsu binary image as a mask
+    for (int row = Y; row < Y + Sy; ++row)
+    for (int col = X; col < X + Sx; ++col)
+    if(src.isInbounds(row, col))
+    {
+
+        int newPixel = 0;
+
+        if(src.getPixel(row, col) > otsu_threshold)
+            newPixel = equalized.getPixel(row, col);
+        else
+            newPixel = src.getPixel(row, col);
+
+        if (isColor)
+        {
+            tgt.setPixel(row, col, RED, newPixel);
+            tgt.setPixel(row, col, GREEN, newPixel);
+            tgt.setPixel(row, col, BLUE, newPixel);
+        }
+
+        else 
+            tgt.setPixel(row, col, newPixel);
+
+    }
+}
+
+
+
+
+
+

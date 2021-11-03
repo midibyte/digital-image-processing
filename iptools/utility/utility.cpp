@@ -251,8 +251,6 @@ void utility::colorMultiplicativeBrightness(image &src, image &tgt, float C, ROI
 			G_new = int(G*C);
 			B_new = int(B*C);
 
-			// printf("RGB, RGBnew: %d,%d,%d, %d,%d,%d\n", R, G, B, R_new, G_new, B_new);
-
 			tgt.setPixel(row, col, RED, checkValue(R_new));
 			tgt.setPixel(row, col, GREEN, checkValue(G_new));
 			tgt.setPixel(row, col, BLUE, checkValue(B_new));
@@ -404,12 +402,10 @@ void create_histogram_array(image &src, unsigned * countArray,
 			if (src.isInbounds(row, col))
 			{
 				++totalPixelCount;
-				// int pixelVal = (int)check_value(src.getPixel(row, col, RGB), minVal, maxVal);
 				int pixelVal = src.getPixel(row, col, RGB);
 
 				// convert pixel value to histogram width range [0, histo_width]
 				unsigned countedVal = (unsigned)range_transform(pixelVal, minVal, maxVal, 0.0, (double)histo_width);
-				// unsigned countedVal = pixelVal;
 				//increment count array
 				++countArray[countedVal];
 			}
@@ -445,8 +441,6 @@ void create_histogram_array(vector<T> &src, unsigned * countArray,
 
 		// convert pixel value to histogram width range [0, histo_width]
 		unsigned countedVal = (unsigned)range_transform((double)pixelVal, (double)minVal, (double)maxVal, 0.0, (double)histo_width);
-		// printf("countedVal %d\n", countedVal);
-		// unsigned countedVal = pixelVal;
 		//increment count array
 		++countArray[countedVal];
 	}
@@ -494,18 +488,6 @@ void save_histogram_image(image &histogram_image, unsigned * countArray,
 	//set histogram size
 	histogram_image.resize(histo_height, histo_width);
 
-
-	// // make bars in the image representing the bucket magnitude in the histogram countArray
-	// for (int col = 0; col < histo_width; ++col)
-	// 	for (int row = histo_height - 1; row >= 0; --row)
-	// 	{
-	// 		// start from the bottom
-	// 		//white bg with black pixels for bars
-	// 		if ( (histo_height - row) < countArray[col])
-	// 			histogram_image.setPixel(row, col, RED, MINRGB);
-	// 		else 
-	// 			histogram_image.setPixel(row, col, RED, MAXRGB);
-	// 	}
 
 	//bucket size version
 	// make bars in the image representing the bucket magnitude in the histogram countArray
@@ -559,7 +541,6 @@ void do_histogram(vector<T> &src,
 	create_histogram_array(src, countArray, histo_height, histo_width, minVal, maxVal);
 	save_histogram_image(histogramImage, countArray, histo_height, histo_width, ROI_parameters.histogramName, bucketSize);
 
-	// print_histogram_array(countArray, histo_width, 5);
 
 	// free mem
 	free(countArray);
@@ -587,8 +568,6 @@ void do_histogram(image &src,
 	create_histogram_array(src, countArray, histo_height, histo_width, ROI_parameters, minVal, maxVal, RED);
 	save_histogram_image(histogramImage, countArray, histo_height, histo_width, ROI_parameters.histogramName, bucketSize);
 
-	// print_histogram_array(countArray, histo_width, 5);
-
 	// free mem
 	free(countArray);
 }
@@ -608,7 +587,6 @@ void utility::histo_stretch(image &src, image &tgt, int a1, int b1, ROI ROI_para
 
 	unsigned histo_height{(MAXRGB + 1) * 2}, histo_width{(MAXRGB + 1) * 2}, bucketSize{2};
 
-	// do_histogram(src, histo_height, histo_width, ROI_parameters, bucketSize);
 
 	vector<int> pixels, newPixels;
 
@@ -635,8 +613,6 @@ void utility::histo_stretch(image &src, image &tgt, int a1, int b1, ROI ROI_para
 
 	do_histogram(pixels, histo_height, histo_width, ROI_parameters, bucketSize, false, MINRGB, MAXRGB);
 	do_histogram(newPixels, histo_height, histo_width, ROI_parameters, bucketSize, true, MINRGB, MAXRGB);
-
-	// do_histogram(tgt, histo_height, histo_width, ROI_parameters, floor(histo_width / (b1 - a1)), true);
 	
 }
 
@@ -887,10 +863,6 @@ RGB_pixel utility::HSI_to_RGB(HSI_pixel in)
 	G *= 255;
 	B *= 255;
 
-	// R = (int)round(R);
-	// G = (int)round(G);
-	// B = (int)round(B);
-
 	out = (RGB_pixel){.R = (int)round(R), .G = (int)round(G), .B = (int)round(B)};
 	return out;
 }
@@ -996,8 +968,6 @@ void utility::histo_stretch_RGB_multi(image &src, image &tgt,
 				tgt.setPixel(row, col, BLUE, checkValue((int)newValB));
 			}
 		}
-
-	// do_histogram(tgt, histo_height, histo_width, ROI_parameters, floor(histo_width / (b1 - a1)), true);
 	
 }		
 
@@ -1026,7 +996,6 @@ void utility::histo_stretch_I(image &src, image &tgt,
 
 	unsigned histo_height{(int)MAXNORM * 500}, histo_width{(int)MAXNORM * 500}, bucketSize{1};
 
-	// do_histogram(src, histo_height, histo_width, ROI_parameters, bucketSize);
 
 	tgt.resize(src.getNumberOfRows(), src.getNumberOfColumns());
 
@@ -1050,8 +1019,6 @@ void utility::histo_stretch_I(image &src, image &tgt,
 				I.push_back(pixelConverted.I);
 
 				// strech HSI pixels
-				// double newValH = range_transform(pixelConverted.H, aH, bH, MINHUE, MAXHUE);
-				// double newValS = range_transform(pixelConverted.S, aS, bS, 0.MINNORM, MAXNORM);
 				double newValI = range_transform(pixelConverted.I, a1, b1, MINNORM, MAXNORM);
 
 				newI.push_back(newValI);
@@ -1140,11 +1107,6 @@ void utility::histo_stretch_HSI(image &src, image &tgt,
 	do_histogram(newH, 500, 500, ROI_parameters, 1, true, 0.0, 360.0);	
 }
 
-// template <typename T>
-// void utility::histo_stretch_vector(vector<T> * data, T a, T b)
-// {
-
-// }
 
 /*-----------------------------------------------------------------------**/
 // PROJECT 3
@@ -1241,18 +1203,13 @@ void utility::edge_detect(image &src, image &tgt, int kernel_size, bool isColor,
 		int pixels_processed_count = 0;
 
 		int row_w, col_w;
-		// row_w = col_w = 0;
 
 		// process pixels for window
 		// iterate through pixels in window
 		// for each pixel, need to get each pixel in the window
-		// for (int kernel_row = 0; kernel_row < kernel_size; ++kernel_row)
-		// for (int kernel_col = 0; kernel_col < kernel_size; ++kernel_col)
 		for (int kernel_row = 0, row_w = row - offset; kernel_row < kernel_size; ++kernel_row, ++row_w)
 		for (int kernel_col = 0, col_w = col - offset; kernel_col < kernel_size; ++kernel_col, ++col_w)
 		{
-			// row_w = row - (kernel_row - offset);
-			// col_w = col - (kernel_col - offset);
 			
 			// if (!src.isInbounds(row_w, col_w)) printf("OUTOF BOUUNDS FOOL\n");
 			// ignore pixels in window that are outside image

@@ -8,6 +8,7 @@
 #include "../iptools/core.h"
 #include <strings.h>
 #include <string.h>
+#include <chrono>
 
 using namespace std;
 
@@ -40,6 +41,13 @@ int main (int argc, char** argv)
 	// used with edge detect
 	image binaryEdge, binaryEdgeAngle;
 
+	//used for timing functions
+	// adaoted from stackoverflow example
+	using std::chrono::high_resolution_clock;
+    using std::chrono::duration_cast;
+    using std::chrono::duration;
+    using std::chrono::milliseconds;
+
 
 
 	// open parameters file 
@@ -58,44 +66,49 @@ int main (int argc, char** argv)
 
 	// read each line from the parameters file
 	while(fgets(str,MAXLEN,fp) != NULL) {
-
-		if ( debug > 0) printf("line read: %s\n", str);
 		
 		// skip comment lines in parameters file
-		// if ( (char)*str == '#') continue;
+		if (str[0] == '#')
+			continue;
+
+		printf("\n");
+		if ( debug > 0) printf("parameters-> %s", str);
 
 		// get source image file name
 		pch = strtok(str, " ");
 		strcpy(infile, pch);
 		src.read(pch);
 
-		if (debug > 0) printf("source image: %s\n", pch);
-		if (debug > 0) printf("img size X, Y: %d, %d\n", src.getNumberOfColumns(), src.getNumberOfRows());
+		if (debug == 1) printf("source image: %s\n", pch);
+		if (debug == 1) printf("img size X, Y: %d, %d\n", src.getNumberOfColumns(), src.getNumberOfRows());
 
 		// get destination file name
 		pch = strtok(NULL, " ");
 		strcpy(outfile, pch);
 
-		if (debug > 0) printf("dest image: %s\n", outfile);
+		if (debug == 1) printf("dest image: %s\n", outfile);
 
 		// read in function - then parameters
 		pch = strtok(NULL, " ");
 		//store function name
 		strcpy(function_name, pch);
 
-		if (debug > 0) printf("function_name: %s\n", function_name);
+		if (debug == 1) printf("function_name: %s\n", function_name);
 
 
 		// get number of ROIs
 		pch = strtok(NULL, " ");
 		count_ROI = atoi(pch);
 
-		if ( debug > 0) printf("number of ROIs %d\n", count_ROI);
+		if ( debug == 1) printf("number of ROIs %d\n", count_ROI);
 
 		// setup image to record modified pixels
 		wasModified.resize(src.getNumberOfRows(), src.getNumberOfColumns());
 		// setup final output image - copy of source, overwrite ROI areas with new pixels
 		image final(src);
+
+		// for measuring performance
+		auto start_time = high_resolution_clock::now();
 
 
 		// handle ROIs =========================================================
@@ -131,7 +144,7 @@ int main (int argc, char** argv)
 			sprintf(ROI_parameters.ogImageName, "%s", hName);
 			sprintf(ROI_parameters.histogramName, "HISTOGRAM_%s_ROI_%d.pgm",hName, idxROI );
 
-			if (debug > 0) printf("Sx, Sy, X, Y: %d, %d, %d, %d\n", ROI_parameters.Sx, ROI_parameters.Sy, ROI_parameters.X, ROI_parameters.Y );
+			if (debug == 1) printf("Sx, Sy, X, Y: %d, %d, %d, %d\n", ROI_parameters.Sx, ROI_parameters.Sy, ROI_parameters.X, ROI_parameters.Y );
 
 			// make sure top left ROI coordnates are inside the image
 			if (ROI_parameters.X < 0 || ROI_parameters.X > src.getNumberOfColumns() || ROI_parameters.Y < 0 || ROI_parameters.Y > src.getNumberOfRows())
@@ -145,22 +158,16 @@ int main (int argc, char** argv)
 			bool ROI_overlap = false;
 
 			if (idxROI >= 1 )
+			// check for ROI overlap with previous ROI, skip if overlapping
+			for (int row = ROI_parameters.Y; row < ROI_parameters.Y + ROI_parameters.Sy; ++row)
+			for (int col = ROI_parameters.X; col < ROI_parameters.X + ROI_parameters.Sx; ++col)
+			if (wasModified.isInbounds(row, col))
+			if(wasModified.getPixel(row, col) > 0)
 			{
-				// check for ROI overlap with previous ROI, skip if overlapping
-				for (int row = ROI_parameters.Y; row < ROI_parameters.Y + ROI_parameters.Sy; ++row)
-					for (int col = ROI_parameters.X; col < ROI_parameters.X + ROI_parameters.Sx; ++col)
-					{
-						if (wasModified.isInbounds(row, col))
-						{
-							if(wasModified.getPixel(row, col) > 0)
-							{
-								// overlaps with previous ROI, skip
-								printf("ROI# %d overlaps with a previous ROI, skipping...\n", idxROI);
-								ROI_overlap = true;
-								goto overlap;
-							}
-						}
-					}
+				// overlaps with previous ROI, skip
+				printf("ROI# %d overlaps with a previous ROI, skipping...\n", idxROI);
+				ROI_overlap = true;
+				goto overlap;
 			}
 
 			// skip ROI if it overlaps with a previous ROI
@@ -175,7 +182,7 @@ int main (int argc, char** argv)
 	        if (strncasecmp(function_name,"add",MAXLEN)==0) 
 	        {
 				pch = strtok(NULL, " ");
-				if (debug > 0) printf("value: %d\n", atoi(pch));
+				if (debug == 1) printf("value: %d\n", atoi(pch));
 	        	utility::addGrey(src,tgt,atoi(pch), ROI_parameters);
 	        }
 
@@ -204,7 +211,7 @@ int main (int argc, char** argv)
 				pch = strtok(NULL, " ");
 				int V2 = atoi(pch);
 
-				if (debug) printf("in iptool.cpp: T, V1, V2: %d %d %d\n", T, V1, V2);
+				if (debug == 1) printf("in iptool.cpp: T, V1, V2: %d %d %d\n", T, V1, V2);
 
 				utility::dual_threshold(src,tgt, T, V1, V2, ROI_parameters);
 			}
@@ -229,7 +236,7 @@ int main (int argc, char** argv)
 	        {
 	        	//get more-C
 				pch = strtok(NULL, " ");
-				if (debug) printf("more-C value: %f\n", atof(pch));
+				if (debug == 1) printf("more-C value: %f\n", atof(pch));
 				utility::colorMultiplicativeBrightness(src,tgt, atof(pch), ROI_parameters);
 			}
 
@@ -258,7 +265,7 @@ int main (int argc, char** argv)
 				pch = strtok(NULL, " ");
 				int b1 = atoi(pch);
 
-				if (debug) printf("histo_stretch (a1, b1): (%d, %d)\n", a1,b1);
+				if (debug == 1) printf("histo_stretch (a1, b1): (%d, %d)\n", a1,b1);
 
 				utility::histo_stretch(src, tgt, a1, b1, ROI_parameters);
 			}
@@ -278,7 +285,7 @@ int main (int argc, char** argv)
 				pch = strtok(NULL, " ");
 				int b2 = atoi(pch);
 
-				if (debug) printf("thresh_histo_stretch (T, a1, b1, a2, b2): (%d, %d, %d, %d, %d)\n", T, a1, b1, a2, b2);
+				if (debug == 1) printf("thresh_histo_stretch (T, a1, b1, a2, b2): (%d, %d, %d, %d, %d)\n", T, a1, b1, a2, b2);
 
 				utility::thresh_histo_stretch(src,tgt, T, a1, b1, a2, b2, ROI_parameters);
 			}
@@ -294,7 +301,7 @@ int main (int argc, char** argv)
 				pch = strtok(NULL, " ");
 				int b1 = atoi(pch);
 
-				if (debug) printf("stretch_RGB_single (channel, a1, b1): (%d, %d, %d)\n", channel, a1, b1);
+				if (debug == 1) printf("stretch_RGB_single (channel, a1, b1): (%d, %d, %d)\n", channel, a1, b1);
 
 				utility::histo_stretch_RGB_single(src, tgt, a1, b1, channel, ROI_parameters);
 			}
@@ -316,7 +323,7 @@ int main (int argc, char** argv)
 				pch = strtok(NULL, " ");
 				int bB = atoi(pch);
 
-				if (debug) printf("thresh_histo_stretch (aR, bR, aG, bG, aB, bB): (%d, %d, %d, %d, %d, %d)\n", aR, bR, aG, bG, aB, bB);
+				if (debug == 1) printf("thresh_histo_stretch (aR, bR, aG, bG, aB, bB): (%d, %d, %d, %d, %d, %d)\n", aR, bR, aG, bG, aB, bB);
 
 				utility::histo_stretch_RGB_multi(src,tgt, aR, bR, aG, bG, aB, bB, ROI_parameters);
 			}
@@ -330,7 +337,7 @@ int main (int argc, char** argv)
 				pch = strtok(NULL, " ");
 				double b1 = atof(pch);
 
-				if (debug) printf("stretch_I (a1, b1): (%f, %f)\n", a1, b1);
+				if (debug == 1) printf("stretch_I (a1, b1): (%f, %f)\n", a1, b1);
 
 				utility::histo_stretch_I(src, tgt, a1, b1, ROI_parameters);
 			}
@@ -352,7 +359,7 @@ int main (int argc, char** argv)
 				pch = strtok(NULL, " ");
 				double bI = atof(pch);
 
-				if (debug) printf("thresh_histo_stretch (aH, bH, aS, bS, aI, bI): (%f, %f, %f, %f, %f, %f)\n", aH, bH, aS, bS, aI, bI);
+				if (debug == 1) printf("thresh_histo_stretch (aH, bH, aS, bS, aI, bI): (%f, %f, %f, %f, %f, %f)\n", aH, bH, aS, bS, aI, bI);
 
 				utility::histo_stretch_HSI(src,tgt, aH, bH, aS, bS, aI, bI, ROI_parameters);
 			}
@@ -364,9 +371,6 @@ int main (int argc, char** argv)
 				pch = strtok(NULL, " ");
 				int kernel_size = atoi(pch);
 				pch = strtok(NULL, " ");
-				// int T = atoi(pch);
-				// pch = strtok(NULL, " ");
-				// int angle = atoi(pch);
 
 				bool isColor = false;
 
@@ -376,7 +380,7 @@ int main (int argc, char** argv)
 					isColor = true;
 				}
 
-				if (debug) printf("edge_detect (kernel_size, T, angle, color?): (%d, %s)\n", kernel_size, isColor?"true":"false");
+				if (debug == 1) printf("edge_detect (kernel_size, T, angle, color?): (%d, %s)\n", kernel_size, isColor?"true":"false");
 
 				utility::edge_detect(src,tgt, kernel_size, isColor, ROI_parameters);
 			}
@@ -399,7 +403,7 @@ int main (int argc, char** argv)
 					isColor = true;
 				}
 
-				if (debug) printf("edge_detect_binary (kernel_size, T, angle, color?): (%d, %d, %d, %s)\n", kernel_size, T, angle, isColor?"true":"false");
+				if (debug == 1) printf("edge_detect_binary (kernel_size, T, angle, color?): (%d, %d, %d, %s)\n", kernel_size, T, angle, isColor?"true":"false");
 
 				utility::edge_detect_binary(src,tgt, kernel_size, T, angle, isColor, ROI_parameters);
 			}
@@ -426,8 +430,7 @@ int main (int argc, char** argv)
 					isColor = true;
 				}
 
-				// if (debug) printf("sobel_opencv (kernel_size, T, angle, color?): (%d, %d, %d, %s)\n", kernel_size, T, angle, isColor?"true":"false");
-				if (debug) printf("sobel_opencv (kernel_size, color?): (%d, %s)\n", kernel_size, isColor?"true":"false");
+				if (debug == 1) printf("sobel_opencv (kernel_size, color?): (%d, %s)\n", kernel_size, isColor?"true":"false");
 
 				utility::sobel_opencv(src, tgt, T, angle, kernel_size, isColor, ROI_parameters);
 			}
@@ -450,10 +453,58 @@ int main (int argc, char** argv)
 					isColor = true;
 				}
 
-				// if (debug) printf("sobel_opencv (kernel_size, T, angle, color?): (%d, %d, %d, %s)\n", kernel_size, T, angle, isColor?"true":"false");
-				if (debug) printf("canny_opencv (kernel_size, color?): (%d, %s)\n", kernel_size, isColor?"true":"false");
+				if (debug == 1) printf("canny_opencv (kernel_size, color?): (%d, %s)\n", kernel_size, isColor?"true":"false");
 
 				utility::canny_opencv(src, tgt, T, angle, kernel_size, isColor, ROI_parameters);
+			}
+
+			// OTSU
+			else if (strncasecmp(function_name,"otsu_opencv",MAXLEN)==0) 
+	        {
+
+				bool isColor = false;
+
+				// check input -- if color image, set the flag
+				if (strstr(infile, ".ppm") != NULL) 
+				{	/* PPM Color Image */
+					isColor = true;
+				}
+
+				if (debug == 1) printf("otsu_opencv (color?): (%s)\n", isColor?"true":"false");
+
+				utility::otsu_opencv(src, tgt, isColor, ROI_parameters);
+			}
+
+			else if (strncasecmp(function_name,"equalize_foreground_otsu_opencv",MAXLEN)==0) 
+	        {
+
+				bool isColor = false;
+
+				// check input -- if color image, set the flag
+				if (strstr(infile, ".ppm") != NULL) 
+				{	/* PPM Color Image */
+					isColor = true;
+				}
+
+				if (debug == 1) printf("equalize_foreground_otsu_opencv (color?): (%s)\n", isColor?"true":"false");
+
+				utility::equalize_foreground_otsu_opencv(src, tgt, isColor, ROI_parameters);
+			}
+
+			else if (strncasecmp(function_name,"equalize_opencv",MAXLEN)==0) 
+	        {
+
+				bool isColor = false;
+
+				// check input -- if color image, set the flag
+				if (strstr(infile, ".ppm") != NULL) 
+				{	/* PPM Color Image */
+					isColor = true;
+				}
+
+				if (debug == 1) printf("equalize_opencv (color?): (%s)\n", isColor?"true":"false");
+
+				utility::equalize_opencv(src, tgt, isColor, ROI_parameters);
 			}
 
 			else {
@@ -461,7 +512,7 @@ int main (int argc, char** argv)
 				continue;
 			}
 
-			if(debug)
+			if(debug == 1)
 			{
 				printf("final size: %d %d, tgt size: %d %d\n", final.getNumberOfRows(), final.getNumberOfColumns(), tgt.getNumberOfRows(), tgt.getNumberOfColumns());
 			}
@@ -479,7 +530,27 @@ int main (int argc, char** argv)
 
 			}
 
-			if (debug) printf("set %d pixels in ROI %d\n", count, idxROI);
+			if (debug == 1) printf("set %d pixels in ROI %d\n", count, idxROI);
+		}
+
+		//finished all processing
+
+		auto end_time = high_resolution_clock::now();
+
+		/* Getting number of milliseconds as an integer. */
+		auto ms_int = duration_cast<milliseconds>(end_time - start_time);
+
+		/* Getting number of milliseconds as a double. */
+		duration<double, std::milli> ms_double = end_time - start_time;
+
+		if (debug > 1)
+		{
+			std::cout << "\n";
+			std::cout << "Performance of function: " << function_name << "\n";
+			std::cout << ms_int.count() << "ms\n";
+			std::cout << ms_double.count() << "ms\n";
+			std::cout << "****************************************************************************************************\n";
+
 		}
 
 		final.save(outfile);

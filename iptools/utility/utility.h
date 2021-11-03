@@ -101,6 +101,10 @@ class utility
 		// funcitons using opencv
 		static void sobel_opencv(image &src, image &tgt, int T, int angle, int kernel_size, bool isColor, ROI ROI_parameters);
 		static void canny_opencv(image &src, image &tgt, int T, int angle, int kernel_size, bool isColor, ROI ROI_parameters);
+		static void otsu_opencv(image &src, image &tgt, bool isColor, ROI ROI_parameters);
+		static void equalize_foreground_otsu_opencv(image &src, image &tgt, bool isColor, ROI ROI_parameters);
+		static void equalize_foreground_otsu_opencv_alt(image &src, image &tgt, bool isColor, ROI ROI_parameters);
+		static void equalize_opencv(image &src, image &tgt, bool isColor, ROI ROI_parameters);
 
 };
 
