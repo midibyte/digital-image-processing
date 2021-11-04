@@ -13,22 +13,27 @@ CCFLAGS = -std=c++11
 CCFLAGSDEBUG := -std=c++11 -g -Wall -pedantic -Wextra
 
 #opencv library
-# OPENCVLIBS := -L /apps/opencv/4.0.1/lib64 -lopencv_core -lopencv_highgui -lopencv_imgcodexs -lopencv-objdetect -Wl,-rpath=/apps/opencv/4.0.1/lib64
-OPENCVLIBS := -L /usr/local/Cellar/opencv/4.5.3_2/lib -lopencv_core -lopencv_highgui -lopencv_imgcodecs -lopencv_objdetect -lopencv_imgproc
+OPENCVLIBS := -L /apps/opencv/4.0.1/lib64 -lopencv_core -lopencv_highgui -lopencv_imgcodecs -lopencv_imgproc -Wl,-rpath=/apps/opencv/4.0.1/lib64
+# macos
+# OPENCVLIBS := -L /usr/local/Cellar/opencv/4.5.3_2/lib -lopencv_core -lopencv_highgui -lopencv_imgcodecs -lopencv_objdetect -lopencv_imgproc
+# server
+# OPENCVLIBS := -L /usr/include/opencv2 -lopencv_core -lopencv_highgui -lopencv_imgcodecs -lopencv_objdetect -lopencv_imgproc
+
 
 # OPENCVLIBS := 
 
 # include opencv directory
-# OPENCVINCLUDE := -I/apps/opencv/4.0.1/include/opencv4
-OPENCVINCLUDE:= -I/usr/local/Cellar/opencv/4.5.3_2/include/opencv4
-
+OPENCVINCLUDE := -I/apps/opencv/4.0.1/include/opencv4
+# macos
+# OPENCVINCLUDE:= -I/usr/local/Cellar/opencv/4.5.3_2/include/opencv4
+# OPENCVINCLUDE := -I/usr/include/opencv2
 
 
 all: $(EXEC)
 
 test: 
 	(cd ../iptools; make)
-	g++ -std=c++14 -g -O3 $(OPENCVLIBS) $(OPENCVINCLUDE) -o $(BIN_DIR)$@ $@.cpp -L ../lib -l iptools
+	g++ -std=c++11 -g -O3 $(OPENCVLIBS) $(OPENCVINCLUDE) -o $(BIN_DIR)$@ $@.cpp -L ../lib -l iptools
 
 iptools:
 	(cd ../iptools; make)
