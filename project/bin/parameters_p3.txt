@@ -25,7 +25,6 @@
 ./img/gallery.pgm ./result/gallery_equalize_fg_otsu.pgm equalize_foreground_otsu_opencv 1 1500 1001 0 0
 # whole image
 ./img/gallery.pgm ./result/gallery_equalize.pgm equalize_opencv 1 1500 1001 0 0
-
 #
 # histogram stretch comparison
 ./img/oldpaper.pgm ./result/oldpaper_equalizecv.pgm equalize_opencv 2 400 400 0 0 300 300 401 500
@@ -34,7 +33,7 @@
 #
 # save histograms
 # eq foreground histogram 
-./result/gallery_equalize_fg_otsu.pgm ./result/gallery_equalize_fg_otsu.pgm 1 1500 1001 0 0
+./result/gallery_equalize_fg_otsu.pgm ./result/gallery_equalize_fg_otsu.pgm histogram 1 1500 1001 0 0
 # old paper histograms
 ./result/oldpaper_equalizecv.pgm ./result/oldpaper_equalizecv.pgm histogram 2 400 400 0 0 300 300 401 500
 ./result/gallery_equalize.pgm ./result/gallery_equalize.pgm histogram 1 1500 1001 0 0

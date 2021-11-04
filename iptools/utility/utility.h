@@ -33,6 +33,12 @@ struct RGB_pixel
 	int R, G, B;
 };
 
+// returns I with range [0.0 1.0]
+static double RGB_to_I(const int R, const int G, const int B)
+{
+	return (double)(R + G + B) / (3.0 * 255);
+}
+
 class utility
 {
 	public:
@@ -92,6 +98,7 @@ class utility
 		template <typename T>
 		static void histo_stretch_vector(vector<T> * data, T a, T b);
 
+		static void make_histogram_image(image &src, image &tgt, bool isColor, ROI ROI_parameters);
 
 		// project 3
 

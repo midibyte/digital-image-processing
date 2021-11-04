@@ -15,6 +15,24 @@
 #define MINHUE 0.0
 #define MAXHUE 360.0
 
+template <class T, class V>
+T range_transform(const V in, const V inMin, const V inMax, const T outMin, const T outMax)
+{
+
+	double inRange, outRange;
+
+	inRange = inMax - inMin;
+
+	// check for edge case, prevent didide by 0
+	if (inRange == 0) return outMin;
+
+	else if (in <= inMin) return outMin;
+	else if (in >= inMax) return outMax;
+
+	else
+        return (T)((((in - inMin) * (outMax - outMin)) / (inMax - inMin)) + outMin);
+}
+
 
 /* *************************************************************
 
@@ -58,7 +76,24 @@ void utility::sobel_opencv(image &src, image &tgt, int T, int angle, int kernel_
     for (int col = X, matCol = 0; col < X + Sx && matCol < roiMat.cols; ++col, ++matCol)
     if(src.isInbounds(row, col))
     {
-        roiMat(matRow, matCol) =  src.getPixel(row, col);
+        int pixel = 0;
+        // handle color image, convert to HSI
+        if(isColor)
+			{
+				// get RGB pixels
+				int pixelR = src.getPixel(row, col, RED);
+				int pixelG = src.getPixel(row, col, GREEN);
+				int pixelB = src.getPixel(row, col, BLUE);
+
+				// convert to HSI -- only need I channel
+                double pixel_I = RGB_to_I(pixelR, pixelG, pixelB);
+
+                // convert I channel pixel to int pixel range
+                pixel = range_transform(pixel_I, 0.0, 1.0, 0, 255);
+            }        
+        else 
+            pixel = src.getPixel(row, col);
+        roiMat(matRow, matCol) =  pixel;
     }
 
     int count = 0;
@@ -181,15 +216,15 @@ void utility::sobel_opencv(image &src, image &tgt, int T, int angle, int kernel_
                 newPixel = 0;
         }
 
-        if(!isColor)
-            tgt.setPixel(row, col, newPixel);
 
-        else if (isColor)
+        if (isColor)
         {
             tgt.setPixel(row, col, RED, newPixel);
             tgt.setPixel(row, col, GREEN, newPixel);
             tgt.setPixel(row, col, BLUE, newPixel);
         }
+        else
+            tgt.setPixel(row, col, newPixel);
     }
     // printf("region set row col to row col: (%d %d) to (%d %d)\n", minRow, minCol, maxRow, maxCol);
 
@@ -220,14 +255,38 @@ void utility::canny_opencv(image &src, image &tgt, int T, int angle, int kernel_
     // setup mat for ROI
     cv::Mat_<int> roiMat(Sy, Sx);
 
+    // // copy pixels from ROI into cv Mat
+	// for (int row = Y, matRow = 0; row < Y + Sy; ++row, ++matRow)
+    // for (int col = X, matCol = 0; col < X + Sx; ++col, ++matCol)
+    // if(src.isInbounds(row, col))
+    // {
+    //     roiMat(matRow, matCol) =  src.getPixel(row, col);
+    // }
     // copy pixels from ROI into cv Mat
-	for (int row = Y, matRow = 0; row < Y + Sy; ++row, ++matRow)
-    for (int col = X, matCol = 0; col < X + Sx; ++col, ++matCol)
+	for (int row = Y, matRow = 0; row < Y + Sy && matRow < roiMat.rows; ++row, ++matRow)
+    for (int col = X, matCol = 0; col < X + Sx && matCol < roiMat.cols; ++col, ++matCol)
     if(src.isInbounds(row, col))
     {
-        roiMat(matRow, matCol) =  src.getPixel(row, col);
+        int pixel = 0;
+        // handle color image, convert to HSI
+        if(isColor)
+			{
+				// get RGB pixels
+				int pixelR = src.getPixel(row, col, RED);
+				int pixelG = src.getPixel(row, col, GREEN);
+				int pixelB = src.getPixel(row, col, BLUE);
+
+				// convert to HSI -- only need I channel
+                double pixel_I = RGB_to_I(pixelR, pixelG, pixelB);
+
+                // convert I channel pixel to int pixel range
+                pixel = range_transform(pixel_I, 0.0, 1.0, 0, 255);
+            }        
+        else 
+            pixel = src.getPixel(row, col);
+
+        roiMat(matRow, matCol) =  pixel;
     }
-    // printf("bf check\n");
 
     // test if pixels copied correctly
     for (int row = Y, matRow = 0; row < Y + Sy; ++row, ++matRow)
@@ -236,8 +295,10 @@ void utility::canny_opencv(image &src, image &tgt, int T, int angle, int kernel_
     {
         // cv::Mat_<int> temp(roiMat);
         // check if values are the same
-        if (src.getPixel(row, col) != roiMat(matRow, matCol))
+        if (src.getPixel(row, col) != roiMat(matRow, matCol) && !isColor)
             printf("canny pixels not equal: vals = %d %d\n", src.getPixel(row, col), roiMat(matRow, matCol));
+        if ((int)(255.0 * RGB_to_I(src.getPixel(row, col, RED), src.getPixel(row, col, GREEN), src.getPixel(row, col, BLUE))) != roiMat(matRow, matCol) && isColor)
+            printf("canny pixels not equal: vals = %d %d\n", (int)(255.0 * RGB_to_I(src.getPixel(row, col, RED), src.getPixel(row, col, GREEN), src.getPixel(row, col, BLUE))), roiMat(matRow, matCol));
     }
 
     double delta = 0;
@@ -349,8 +410,9 @@ void utility::otsu_opencv(image &src, image &tgt, bool isColor, ROI ROI_paramete
     // roiMat.convertTo(roiMat_CV_8U, CV_8U)
 
     // do binary otsu here
-    int otsu_threshold;
-    otsu_threshold = cv::threshold(roiMat_CV_8U, otsu_result_CV_8U, 0, 255, cv::THRESH_BINARY | cv::THRESH_OTSU);
+    // int otsu_threshold;
+    // otsu_threshold = 
+    cv::threshold(roiMat_CV_8U, otsu_result_CV_8U, 0, 255, cv::THRESH_BINARY | cv::THRESH_OTSU);
 
     // convert CV_U8 Mat to int Mat_
     cv::Mat_<int> otsu_result_int;

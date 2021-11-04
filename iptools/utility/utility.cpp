@@ -205,7 +205,10 @@ void utility::uniformSmoothing(image &src, image &tgt, int WS, ROI ROI_parameter
 				}
 
 			//set new pixel value based on window average
-			tgt.setPixel(row, col, checkValue( (int)(sum_pixels/count_pixels) ));
+			// catch divide by zero error, set to 0
+			if (count_pixels != 0)
+				tgt.setPixel(row, col, checkValue( (int)(sum_pixels/count_pixels) ));
+			else tgt.setPixel(row, col, 0);
 
 		}
 
@@ -483,7 +486,7 @@ void print_histogram_array(unsigned * countArray, unsigned histo_width, unsigned
 void save_histogram_image(image &histogram_image, unsigned * countArray,
 							unsigned histo_height, unsigned histo_width,
 							const char * saveFileName,
-							unsigned bucketSize=2)
+							unsigned bucketSize=2, bool saveImage = true)
 {
 	//set histogram size
 	histogram_image.resize(histo_height, histo_width);
@@ -512,7 +515,7 @@ void save_histogram_image(image &histogram_image, unsigned * countArray,
 			}
 		}
 
-	histogram_image.save(saveFileName);
+	if (saveImage) histogram_image.save(saveFileName);
 }
 /* 
 
@@ -529,8 +532,9 @@ void do_histogram(vector<T> &src,
 {
 	// create, allocate, and init to all 0's
 	unsigned * countArray;
-	countArray = (unsigned *) malloc(histo_width * sizeof(countArray[0]));
-	memset(countArray, 0, histo_width * sizeof(countArray[0]));
+	size_t histo_size = (histo_width + 2) * sizeof(countArray[0]);
+	countArray = (unsigned *) malloc(histo_size);
+	memset(countArray, 0, histo_size);
 	
 	image histogramImage;
 
@@ -552,12 +556,13 @@ void do_histogram(image &src,
 					unsigned bucketSize=2,
 					bool isModified=false,
 					int minVal=0, int maxVal=255,
-					int RGB=RED)
+					int RGB=RED, bool saveImage = true)
 {
 	// create, allocate, and init to all 0's
 	unsigned * countArray;
-	countArray = (unsigned *) malloc(histo_width * sizeof(countArray[0]));
-	memset(countArray, 0, histo_width * sizeof(countArray[0]));
+	size_t histo_size = (histo_width + 2) * sizeof(countArray[0]);
+	countArray = (unsigned *) malloc(histo_size);
+	memset(countArray, 0, histo_size);
 	
 	image histogramImage;
 
@@ -566,11 +571,41 @@ void do_histogram(image &src,
 
 
 	create_histogram_array(src, countArray, histo_height, histo_width, ROI_parameters, minVal, maxVal, RED);
-	save_histogram_image(histogramImage, countArray, histo_height, histo_width, ROI_parameters.histogramName, bucketSize);
+	if(saveImage) save_histogram_image(histogramImage, countArray, histo_height, histo_width, ROI_parameters.histogramName, bucketSize);
 
 	// free mem
 	free(countArray);
 }
+/* 
+	makes a histogram image in tgt
+ */
+void utility::make_histogram_image(image &src, image &tgt, bool isColor, ROI ROI_parameters)
+{
+	int histoHeight, histoWidth;
+	int minVal=0;
+	int maxVal=255;
+	unsigned bucketSize = 2;
+
+	histoHeight = histoWidth = 512;
+
+	// create, allocate, and init to all 0's
+	unsigned * countArray;
+	size_t histo_size = (histoWidth + 2) * sizeof(countArray[0]);
+	countArray = (unsigned *) malloc(histo_size);
+	memset(countArray, 0, histo_size);
+	
+	image histogramImage;
+
+	create_histogram_array(src, countArray, histoHeight, histoWidth, ROI_parameters, minVal, maxVal, RED);
+	save_histogram_image(histogramImage, countArray, histoHeight, histoWidth, ROI_parameters.histogramName, bucketSize, true);
+
+	// tgt.copyImage(histogramImage);
+
+	// free mem
+	free(countArray);
+}
+
+
 
 /*-----------------------------------------------------------------------**/
 void utility::histo_stretch(image &src, image &tgt, int a1, int b1, ROI ROI_parameters)
@@ -742,6 +777,9 @@ HSI_pixel utility::RGB_to_HSI(RGB_pixel in)
 					H = (B - R)/ C + 2;
 				else if (max_RGB == B)
 					H = (R - G) / C + 4;
+				//undefined
+				else 
+					H = 0;
 				
 				H *= 60;
 			}
@@ -1160,20 +1198,20 @@ void utility::edge_detect(image &src, image &tgt, int kernel_size, bool isColor,
 
 	vector<vector<int>> sobel_5_Gx
 	{
-		{2, 2, 4, 2, 2},
-		{1, 1, 2, 1, 1},
-		{0, 0, 0, 0, 0,},
-		{-1, -1, -2, -1, -1},
-		{-2, -2, -4, -2, -2}
+		{-5, -4, 0, 4, 5},
+		{-8, -10, 0, 10, 8},
+		{-10, -20, 0, 20, 10,},
+		{-8, -10, 0, 10, 8},
+		{-5, -4, 0, 4, 5}
 	};
 
 	vector<vector<int>> sobel_5_Gy
 	{
-		{2, 1, 0, -1, -2},
-		{2, 1, 0, -1, -2},
-		{4, 2, 0, -2, -4},
-		{2, 1, 0, -1, -2},
-		{2, 1, 0, -1, -2}
+		{-5, -8, -10, -8, -5},
+		{-4, -10, -20, -10, -4},
+		{0, 0, 0, 0, 0},
+		{4, 10, 20, 10, 4},
+		{5, 8, 10, 8, 5}
 	};
 
 	// set correct kernel based on input  
@@ -1226,9 +1264,10 @@ void utility::edge_detect(image &src, image &tgt, int kernel_size, bool isColor,
 				int pixelB = src.getPixel(row_w, col_w, BLUE);
 
 				// convert to HSI -- only need I channel
-				HSI_pixel pixelConverted = RGB_to_HSI(RGB_pixel{.R=pixelR, .G=pixelG, .B=pixelB});
+				double pixel = RGB_to_I(pixelR, pixelG, pixelB);
+				// HSI_pixel pixelConverted = RGB_to_HSI(RGB_pixel{.R=pixelR, .G=pixelG, .B=pixelB});
 			
-				double pixel = pixelConverted.I;
+				// double pixel = pixelConverted.I;
 
 				Gx = Gx + (pixel * (double)kernel_x[kernel_row][kernel_col]);
 				Gy = Gy +  (pixel * (double)kernel_y[kernel_row][kernel_col]);
@@ -1298,7 +1337,11 @@ void utility::edge_detect_binary(image &src, image &tgt, int kernel_size, int T,
 	// do edge detection sobel
 	edge_detect(src, edgeImg, kernel_size, isColor, ROI_parameters);
 	// binarize image in ROI
-	binarize(edgeImg, tgt, T, ROI_parameters);
+	if (T != -1)
+		binarize(edgeImg, tgt, T, ROI_parameters);
+	// if no T, skip binary
+	else
+		tgt.copyImage(edgeImg);
 
 	// set pixel in gradient image for color input
 	if (isColor)
@@ -1314,11 +1357,9 @@ void utility::edge_detect_binary(image &src, image &tgt, int kernel_size, int T,
 			tgt.setPixel(row, col, BLUE, pixel);
 		}
 	}
-	// else
-	// tgt.setPixel(row, col, 0);
 
-	// stop here if no angle requested
-	if(angle == -1) return;
+	// stop here if no angle requested, must also do binary if angle requested
+	if(angle == -1 || T == -1) return;
 
 	// only do this part if an angle is requested
 	// iterate through pixels in ROI

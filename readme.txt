@@ -30,6 +30,7 @@ project- This folder hosts the files that will be compiled into executables.
 
 	Each function operates only in its ROI
 	For each function, the function name is listed first, followed by the required parameters for that function
+	A histogram can be created for any image. Use the histogram function described under Projcet 3.
 
 	add value
 		Increase the intensity for a gray-level image.
@@ -93,6 +94,7 @@ PROJECT 2 ******************************************************************
 		transforms the values in the RED channel inside the range [aR bR] to [0 255]
 		transforms the values in the GREEN channel inside the range [aG bG] to [0 255]
 		transforms the values in the BLUE channel inside the range [aB bB] to [0 255]
+		NOTE: can set any of the a b values to a=0 and b=1.0 to ignore that channel 
 
 	stretch_I a b
 		converts the image from the RGB color space to HSI 
@@ -104,17 +106,23 @@ PROJECT 2 ******************************************************************
 		converts the image with the new I channel from HSI back to RGB then outputs the new image
 
 	stretch_HSI aH bH aS bS aI bI
-		transforms the values in the RED channel inside the range [aH bH] to [0 360]
-		transforms the values in the GREEN channel inside the range [aS bS] to [0 1.0]
-		transforms the values in the BLUE channel inside the range [aI bI] to [0 1.0]
-
-		NOTE can set any of the a b to a=0 and b=1.0 to ignore that channel 
+		transforms the values in the HUE channel inside the range [aH bH] to [0 360]
+		transforms the values in the SATURATION channel inside the range [aS bS] to [0 1.0]
+		transforms the values in the INTENSITY channel inside the range [aI bI] to [0 1.0]
+		NOTE: can set any of the a b values to a=0 and b=1.0 to ignore that channel 
 
 	Histogram stretching on I-component of HSI 
 		display I as a grey level image 
 		convert back to RGB and display color after stretched I channel
 
 PROJECT 3 *******************************************************************************
+
+	histogram
+		takes no input 
+		input and output file names should be the same
+		outputs a histogram for each ROI 
+		output name will include ROI_#_HISTOGRAM, where # is the ROI number
+		NOTE: use this function to create a histogram of any image and ROIs
 
 	edge_detect kernel_size
 		NOTE: kernel_size can ONLY be 3 or 5
@@ -124,18 +132,22 @@ PROJECT 3 **********************************************************************
 
 	edge_detect_binary kernel_size threshold angle
 		applies the sobel filter of size "kernel_size" to the input image
-		threshold range [0 255]
-		angle range [0 360]
+		input ranges:
+			threshold T range [0 255]
+			angle range [0 360]
+			kernel_size MUST be 3 or 5
 		angle displays edges within +-10 degrees of input
-		NOTE: disable angle by setting angle = -1 in parameters
 		computes: dx, dy, gradient amplitude, edge direction
 		kernel_size can ONLY be 3 or 5
 		IF a color image is used, the images is converted to HSI and the sobel filter is applied to the I channel
-		the resulting image will be grayscale
-		
-		outputs:
-			a binary image thresholded with threshold T
-			NOTE: if angle != -1, only edges +- 10 degrees of input are shown
+		the resulting ROIs will be grayscale
+		output options:
+			T = -1 angle = -1
+				outputs gradient image 
+			T = value, angle = -1
+				outputs gradient image with binarizaiton with threshold T
+			T = value, angle = value
+				binary gradient image using threshold T, shows only angles +- 10 of input angle value
 			NOTE: only one output image is produced. 
 				Use different combinations of inputs to get desired output
 				
@@ -152,6 +164,8 @@ PROJECT 3 **********************************************************************
 			threshold T range [0 255]
 			angle range [0 360]
 			kernel_size MUST be 3 or 5
+		IF a color image is used, the images is converted to HSI and the sobel filter is applied to the I channel
+		the resulting ROIs will be grayscale
 		output options:
 			T = -1 angle = -1
 				outputs gradient image 
@@ -159,6 +173,8 @@ PROJECT 3 **********************************************************************
 				outputs gradient image with binarizaiton with threshold T
 			T = value, angle = value
 				binary gradient image using threshold T, shows only angles +- 10 of input angle value
+			NOTE: only one output image is produced. 
+				Use different combinations of inputs to get desired output
 		
 		
 	canny_opencv kernel_size T angle
@@ -167,6 +183,8 @@ PROJECT 3 **********************************************************************
 			threshold T range [0 255]
 			angle range [0 360]
 			kernel_size MUST be 3 or 5
+		IF a color image is used, the images is converted to HSI and the sobel filter is applied to the I channel
+		the resulting ROIs will be grayscale
 		output options:
 			T = -1 angle = -1
 				outputs gradient image 
@@ -174,29 +192,27 @@ PROJECT 3 **********************************************************************
 				outputs gradient image with binarizaiton with threshold T
 			T = value, angle = value
 				binary gradient image using threshold T, shows only angles +- 10 of input angle value
+			NOTE: only one output image is produced. 
+				Use different combinations of inputs to get desired output
 	
 	otsu_opencv
 		takes no input 
 		uses the opencv threshold function with the otsu binary option 
+		outputs a binary image
 	
+	equalize_opencv
+		takes no inputs
+		uses the opencv function equalizeHist to equalize the ROIs 
+		outputs an equalized image
+
 	equalize_foreground_otsu_opencv
 		takes no input 
 		uses otsu to find the threshold value
-		selects all the pixels above the threshold, 
-		and only applies the opencv histogram equalization function to those values
+		applies the opencv histogram equalization function to the ROIs
 		then uses the following logic:
 			if a pixel is >= threshold, set pixel to equalized value 
 			else, set to original value 
 
-	equalize_opencv 
-
-	EXTRA
-	edges_full_color
-		uses OpenCV, convert RGB to HSV
-		apply canny to each HSV channel separately
-	
-	QR_code 
-		OpenCV???
 		 
 
 *** PARAMETERS FILE *********************************************************************
@@ -220,8 +236,12 @@ RUNNING THE PROGRAM ************************************************************
 	NOTE:
 		can use: 
 		./iptool parameters.txt debug_val
-		1 = print debug strings to console
-		2 = use print time measurements
+		debug_val = 
+			1 = print debug strings to console
+			2 = use print time measurements
+	NOTE:
+		if you are getting segmentation fault errors, check to see if you included a function for each line in the parameters file 
+		.pgm and .ppm files must be in binary format, not ascii format 
 
 PROGRAM LOGIC *********************************************************************
 

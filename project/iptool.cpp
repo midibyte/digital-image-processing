@@ -142,7 +142,7 @@ int main (int argc, char** argv)
 			//get the base name of the image w/o extension
 			hName[strlen(hName) - 4] = '\0';
 			sprintf(ROI_parameters.ogImageName, "%s", hName);
-			sprintf(ROI_parameters.histogramName, "HISTOGRAM_%s_ROI_%d.pgm",hName, idxROI );
+			sprintf(ROI_parameters.histogramName, "%s_ROI_%d_HISTOGRAM.pgm",hName, idxROI );
 
 			if (debug == 1) printf("Sx, Sy, X, Y: %d, %d, %d, %d\n", ROI_parameters.Sx, ROI_parameters.Sy, ROI_parameters.X, ROI_parameters.Y );
 
@@ -406,6 +406,22 @@ int main (int argc, char** argv)
 				if (debug == 1) printf("edge_detect_binary (kernel_size, T, angle, color?): (%d, %d, %d, %s)\n", kernel_size, T, angle, isColor?"true":"false");
 
 				utility::edge_detect_binary(src,tgt, kernel_size, T, angle, isColor, ROI_parameters);
+			}
+
+			else if (strncasecmp(function_name,"histogram",MAXLEN)==0) 
+	        {
+
+				bool isColor = false;
+
+				// check input -- if color image, set the flag
+				if (strstr(infile, ".ppm") != NULL) 
+				{	/* PPM Color Image */
+					isColor = true;
+				}
+
+				if (debug == 1) printf("histogram (color?): (%s)\n", isColor?"true":"false");
+
+				utility::make_histogram_image(src, tgt, isColor, ROI_parameters);
 			}
 
 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
