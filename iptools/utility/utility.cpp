@@ -539,7 +539,7 @@ void do_histogram(vector<T> &src,
 	image histogramImage;
 
 	if (isModified)
-		sprintf(ROI_parameters.histogramName, "%s_NEW.pgm", ROI_parameters.histogramName );
+		sprintf(ROI_parameters.histogramName, "%s_NEW.pgm", temp );
 
 
 	create_histogram_array(src, countArray, histo_height, histo_width, minVal, maxVal);

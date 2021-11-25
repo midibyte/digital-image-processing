@@ -142,7 +142,7 @@ int main (int argc, char** argv)
 			//get the base name of the image w/o extension
 			hName[strlen(hName) - 4] = '\0';
 			sprintf(ROI_parameters.ogImageName, "%s", hName);
-			sprintf(ROI_parameters.histogramName, "%s_ROI_%d_HISTOGRAM.pgm",hName, idxROI );
+			sprintf(ROI_parameters.histogramName, "%.1024s_ROI_%d_HISTOGRAM.pgm",hName, idxROI );
 
 			if (debug == 1) printf("Sx, Sy, X, Y: %d, %d, %d, %d\n", ROI_parameters.Sx, ROI_parameters.Sy, ROI_parameters.X, ROI_parameters.Y );
 
@@ -523,6 +523,24 @@ int main (int argc, char** argv)
 				utility::equalize_opencv(src, tgt, isColor, ROI_parameters);
 			}
 
+			//  DFT ======================================================================================
+			else if (strncasecmp(function_name,"DFT",MAXLEN)==0) 
+	        {
+
+				bool isColor = false;
+
+				// check input -- if color image, set the flag
+				if (strstr(infile, ".ppm") != NULL) 
+				{	/* PPM Color Image */
+					isColor = true;
+				}
+
+				if (debug == 1) printf("DFT (color?): (%s)\n", isColor?"true":"false");
+
+				utility::DFT(src, tgt, isColor, ROI_parameters);
+			}
+
+			// END OF FUNCTION SELECTION =================================================
 			else {
 				printf("No function: %s\n", pch);
 				continue;

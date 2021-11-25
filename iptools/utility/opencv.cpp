@@ -670,4 +670,125 @@ void utility::equalize_foreground_otsu_opencv(image &src, image &tgt, bool isCol
 
 
 
+/* 
 
+Project 4 code starts here
+
+ */
+
+
+void utility::DFT(image &src, image &tgt, bool isColor, ROI ROI_parameters)
+{
+        
+    //implemented with opencv functions 
+
+	// ROI variables
+	unsigned int Sx, Sy, X, Y;
+	Sx = ROI_parameters.Sx;
+	Sy = ROI_parameters.Sy;
+	X = ROI_parameters.X;
+	Y = ROI_parameters.Y;
+
+    // copy src into tgt, then overwrite changed pixels from ROI
+    tgt.copyImage(src);
+
+    // setup mat for ROI
+    cv::Mat_<int> roiMat_int(Sy, Sx);
+
+    // copy pixels from ROI into cv Mat
+	for (int row = Y, matRow = 0; row < Y + Sy; ++row, ++matRow)
+    for (int col = X, matCol = 0; col < X + Sx; ++col, ++matCol)
+    if(src.isInbounds(row, col))
+    {
+        roiMat_int(matRow, matCol) =  src.getPixel(row, col);
+    }
+
+    cv::Mat roiMat;
+
+    // convert input to 8bit 
+    // cv::Mat roiMat_CV_8U, otsu_result_CV_8U;
+    cv::convertScaleAbs(roiMat_int, roiMat);
+
+
+    /* 
+        DFT code adapted from opencv docs
+        https://docs.opencv.org/3.4/d8/d01/tutorial_discrete_fourier_transform.html
+     */    
+
+    // get optimal size of Mat for dft, use to add border to ROI 
+    cv::Mat padded;
+    int optimal_rows = cv::getOptimalDFTSize( roiMat.rows );
+    int optimal_cols = cv::getOptimalDFTSize( roiMat.cols );
+    cv::copyMakeBorder( roiMat, padded, 0, optimal_rows - roiMat.rows, 0, optimal_cols - roiMat.cols, cv::BORDER_CONSTANT, cv::Scalar::all(0));
+
+    // holds complex components of dft
+    cv::Mat planes[] = {cv::Mat_<float>(padded), cv::Mat::zeros(padded.size(), CV_32F)};
+    cv::Mat complex_roiMat;
+    merge(planes, 2, complex_roiMat);
+
+    // do dft with opencv
+    cv::dft(complex_roiMat, complex_roiMat);
+
+    // split result into planes
+    cv::split(complex_roiMat, planes);
+    cv::magnitude(planes[0], planes[1], planes[0]);
+    cv::Mat mag_roiMat = planes[0];
+
+    mag_roiMat += cv::Scalar::all(1);
+    cv::log(mag_roiMat, mag_roiMat);
+
+    //crop spectrum
+    mag_roiMat = mag_roiMat(cv::Rect(0, 0, mag_roiMat.cols & -2, mag_roiMat.rows & -2));
+
+    // place origin at image center
+
+    int cx = mag_roiMat.cols / 2;
+    int cy = mag_roiMat.rows / 2;
+
+    cv::Mat q0(mag_roiMat, cv::Rect(0, 0, cx, cy));   // Top-Left - Create a ROI per quadrant
+    cv::Mat q1(mag_roiMat, cv::Rect(cx, 0, cx, cy));  // Top-Right
+    cv::Mat q2(mag_roiMat, cv::Rect(0, cy, cx, cy));  // Bottom-Left
+    cv::Mat q3(mag_roiMat, cv::Rect(cx, cy, cx, cy)); // Bottom-Right
+    cv::Mat tmp;                           // swap quadrants (Top-Left with Bottom-Right)
+    q0.copyTo(tmp);
+    q3.copyTo(q0);
+    tmp.copyTo(q3);
+    q1.copyTo(tmp);                    // swap quadrant (Top-Right with Bottom-Left)
+    q2.copyTo(q1);
+    tmp.copyTo(q2);
+    cv::normalize(mag_roiMat, mag_roiMat, 0, 1, cv::NORM_MINMAX); // Transform the matrix with float values into a
+                                            // viewable image form (float between values 0 and 1).
+
+    // cv::imshow("Input Image"       , roiMat   );    // Show the result
+    // cv::imshow("spectrum magnitude", mag_roiMat);
+    // cv::waitKey();
+
+    // result is in mag_roiMat
+    // copy back to image object
+
+    // convert float Mat with range [0 1] to range [0 255] to place in Image obj
+    cv::Mat_<int> intMat;
+    mag_roiMat.convertTo(intMat, CV_32S, 255);
+    // cv::Mat_<unsigned short> tempMat(mag_roiMat);
+
+    printf("TYPE OF THE FUCKING MAT: %d\n", mag_roiMat.type());
+
+    for (int row = Y, matRow = 0; row < Y + Sy && matRow < intMat.rows; ++row, ++matRow)
+    for (int col = X, matCol = 0; col < X + Sx && matCol < intMat.cols; ++col, ++matCol)
+    if(src.isInbounds(row, col))
+    {
+
+        int newPixel = intMat(matRow, matCol);
+
+        if (isColor)
+        {
+            tgt.setPixel(row, col, RED, newPixel);
+            tgt.setPixel(row, col, GREEN, newPixel);
+            tgt.setPixel(row, col, BLUE, newPixel);
+        }
+
+        else 
+            tgt.setPixel(row, col, newPixel);
+
+    }
+}
