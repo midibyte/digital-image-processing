@@ -151,8 +151,59 @@ PROJECT 3 **********************************************************************
 			NOTE: only one output image is produced. 
 				Use different combinations of inputs to get desired output
 				
+PROJECT 4 *******************************************************************************
+	NOTES: 
+		in all cases the filter_size is the ratio of the longest side
 
 
+	DFT
+		outputs:
+			an image of the magnitude of the fourier transform of the image
+
+	low_pass filter_size
+		outputs:
+			an image of the magnitude of the fourier transform of the image
+			the filtered image
+			an image of the magnitude of the fourier transform of the filtered image
+		inputs:
+			filter_size: 
+				a floating point value. range [0.0,  1.0]
+				this will determine the radus of the circular filter to apply to the image in the fourier domain
+				the circle will be located at the center of the image, with a diameter = pixels*filter_size
+				where pixels is equal to the number of rows or columns of the input image, whichever is larger
+				the filter will be white in the middle and black outside the circle. 
+				it is used as a mask on the input image in the frequency domain, only letting the pixels that overlap with white pass through
+
+	high_pass filter_size
+		outputs:
+			an image of the magnitude of the fourier transform of the image
+			the filtered image
+			an image of the magnitude of the fourier transform of the filtered image
+		inputs:
+			filter_size: 
+				a floating point value. range [0.0,  1.0]
+				this will determine the radus of the circular filter to apply to the image in the fourier domain
+				the circle will be located at the center of the image, with a diameter = pixels*filter_size
+				where pixels is equal to the number of rows or columns of the input image, whichever is larger
+				the filter will be black in the middle and whilte outside the circle. 
+				it is used as a mask on the input image in the frequency domain, only letting the pixels that overlap with white pass through
+
+	band_pass filter_size1 filter_size2
+		outputs:
+			an image of the magnitude of the fourier transform of the image
+			the filtered image
+			an image of the magnitude of the fourier transform of the filtered image
+		inputs:
+			filter_size1 and filter_size2:
+				NOTE: filter_size2 MUST be < filter_size1 
+				a floating point value. range [0.0,  1.0]
+				this will determine the radus of the circular filter to apply to the image in the fourier domain
+				the circle will be located at the center of the image, with a diameter = pixels*filter_size
+				where pixels is equal to the number of rows or columns of the input image, whichever is larger
+				creates a band pass filter where filter_size2 is the size of teh inner circle (black),
+				and filter_size1 is the size fo the outer circle (white)
+				This creates a filter where the space between the two circles is white, making a band-pass filter in the frequency domain
+				
 			
 
 		

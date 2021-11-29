@@ -560,6 +560,11 @@ int main (int argc, char** argv)
 	        {
 				pch = strtok(NULL, " ");
 				ROI_parameters.filter_radius = atof(pch);
+
+				ROI_parameters.H_filter = 0;
+				ROI_parameters.V_filter = 0;
+				int type;
+				
 				
 				if(strncasecmp(function_name,"high_pass",MAXLEN)==0)
 				{
@@ -577,12 +582,30 @@ int main (int argc, char** argv)
 				if (strstr(infile, ".ppm") != NULL) 
 				{	/* PPM Color Image */
 					isColor = true;
+
+					pch = strtok(NULL, " ");
+				
+					// filter type 0 = normal, 1 = H channel on color image, 2 = V channel on color image
+					type = atoi(pch);
+
+					if (type == 1) 
+					{
+						ROI_parameters.H_filter = 1;
+						ROI_parameters.V_filter = 0;
+					}
+					if (type == 2)
+					{
+						ROI_parameters.H_filter = 0;
+						ROI_parameters.V_filter = 1;
+					}
+
 				}
 
-				if (debug == 1) printf("filterin (color?): (%s)\t(low_pass?): (%s)\t(high pass?): (%s)\n", isColor?"true":"false", ROI_parameters.low_pass?"true":"false", ROI_parameters.high_pass?"true":"false");
-
+				if (debug == 1) printf("filter in (color?): (%s)\t(low_pass?): (%s)\t(high pass?): (%s)\n", isColor?"true":"false", ROI_parameters.low_pass?"true":"false", ROI_parameters.high_pass?"true":"false");
+				if (debug == 1 && isColor) printf(" color mode: %d\n", type);
 				utility::dft_filter(src, tgt, isColor, ROI_parameters);
 			}
+
 			// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 			// band pass
@@ -591,27 +614,40 @@ int main (int argc, char** argv)
 				pch = strtok(NULL, " ");
 				ROI_parameters.filter_radius = atof(pch);
 				pch = strtok(NULL, " ");
-				ROI_parameters.filter_radius = atof(pch);
-				
-				if(strncasecmp(function_name,"high_pass",MAXLEN)==0)
-				{
-					ROI_parameters.low_pass = 0;
-					ROI_parameters.high_pass = 1;
-				}
-				else
-				{
-					ROI_parameters.low_pass = 1;
-					ROI_parameters.high_pass = 0;
-				}
+				ROI_parameters.filter_radius_2 = atof(pch);
+				ROI_parameters.band_pass = 1;
+				ROI_parameters.low_pass = 0;
+				ROI_parameters.high_pass = 0;
+
+				ROI_parameters.H_filter = 0;
+				ROI_parameters.V_filter = 0;
+
 				bool isColor = false;
 
 				// check input -- if color image, set the flag
 				if (strstr(infile, ".ppm") != NULL) 
 				{	/* PPM Color Image */
 					isColor = true;
+
+					pch = strtok(NULL, " ");
+				
+					// filter type 0 = normal, 1 = H channel on color image, 2 = V channel on color image
+					int type = atoi(pch);
+
+					if (type == 1) 
+					{
+						ROI_parameters.H_filter = 1;
+						ROI_parameters.V_filter = 0;
+					}
+					if (type == 2)
+					{
+						ROI_parameters.H_filter = 0;
+						ROI_parameters.V_filter = 1;
+					}
+
 				}
 
-				if (debug == 1) printf("filterin (color?): (%s)\t(low_pass?): (%s)\t(high pass?): (%s)\n", isColor?"true":"false", ROI_parameters.low_pass?"true":"false", ROI_parameters.high_pass?"true":"false");
+				if (debug == 1) printf("band-pass in (color?): (%s)\n", isColor?"true":"false");
 
 				utility::dft_filter(src, tgt, isColor, ROI_parameters);
 			}

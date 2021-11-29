@@ -22,6 +22,8 @@ struct ROI
 	unsigned band_pass;
 	double filter_radius;
 	double filter_radius_2;
+	unsigned V_filter;
+	unsigned H_filter;
 };
 
 struct HSI_pixel

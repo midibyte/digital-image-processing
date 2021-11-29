@@ -88,7 +88,7 @@ void show_dft_magnitude_from_complex(cv::Mat in)
 // image pixels in ROI to a uchar Mat (CV_8U)
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-void image_to_Mat_uchar(image &src, cv::Mat &outMat_uchar, ROI parameters)
+void image_to_Mat_uchar(image &src, cv::Mat &outMat_uchar, bool isColor, ROI parameters)
 {
     // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     // load ROI from image object, copy pixels into cv::Mat
@@ -102,20 +102,47 @@ void image_to_Mat_uchar(image &src, cv::Mat &outMat_uchar, ROI parameters)
 	Y = parameters.Y;
 
     // setup mat for ROI - will hold uchar type - values on range [0 255]
-    cv::Mat roiMat_uchar( Sy, Sx, CV_8U);
+    // cv::Mat roiMat_uchar;
+    cv::Mat roiMat_uchar;
+
+    if (isColor)
+    {
+        // roiMat_uchar.convertTo(roiMat_uchar, CV_8UC3);
+        roiMat_uchar = cv::Mat(Sy, Sx, CV_8UC3, cv::Scalar::all(0));
+    }
+    else
+    {
+        roiMat_uchar = cv::Mat(Sy, Sx, CV_8U, cv::Scalar::all(0));
+    }
 
     // copy pixels from ROI into cv Mat
 	for (int row = Y, matRow = 0; row < Y + Sy; ++row, ++matRow)
     for (int col = X, matCol = 0; col < X + Sx; ++col, ++matCol)
     if(src.isInbounds(row, col))
     {
-        // roiMat_int(matRow, matCol) =  src.getPixel(row, col);
-        roiMat_uchar.at<uchar>(matRow, matCol) = src.getPixel(row, col);
+        if (!isColor)
+            roiMat_uchar.at<uchar>(matRow, matCol) = src.getPixel(matRow, matCol);
+        else
+        {
+            // order is BGR
+
+            cv::Vec3b &color = roiMat_uchar.at<cv::Vec3b>(row, col);
+
+            // cv::Vec3b color;
+            color[0] = src.getPixel(row, col, BLUE);
+            color[1] = src.getPixel(row, col, GREEN);
+            color[2] = src.getPixel(row, col, RED);
+
+            // roiMat_uchar.at<cv::Vec3b>(cv::Point(matRow, matCol)) = color;
+
+        }
     }
 
     // convert input to 8bit 
     // ** may not need this 
-    cv::convertScaleAbs(roiMat_uchar, outMat_uchar);
+    // cv::convertScaleAbs(roiMat_uchar, outMat_uchar);
+    outMat_uchar.convertTo(outMat_uchar, roiMat_uchar.type());
+    roiMat_uchar.copyTo(outMat_uchar);
 }
 
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -157,21 +184,46 @@ void swap_quadrants(cv::Mat &magI)
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 //make a filter to use on the image in the fourier domain
-void make_circular_filter(cv::Mat &circularMask, cv::Size filterSize, double filterRadiusPecent, uchar high_pass)
+void make_circular_filter(cv::Mat &circularMask, cv::Size filterSize, ROI parameters)
 {
+
+    double filterRadiusPercent = parameters.filter_radius;
+
     // generate circular filter mask. w/ circle at center of image
     circularMask = cv::Mat::zeros(filterSize, CV_8U);
 
-    int filter_radius_pixels = (int)(filterRadiusPecent * circularMask.rows);
+    cv::Mat circularMask_2 = cv::Mat::zeros(filterSize, CV_8U);
+
+
+    double pixel_size;
+
+    // choose the larger size of the image to set the filtersize
+    if(circularMask.rows > circularMask.cols) pixel_size = (double)circularMask.rows;
+    else pixel_size = (double)circularMask.cols;
+
+    // change diameter to radius
+    pixel_size /= 2;
+
+    //set the size of the filter circle
+    double filter_radius_pixels = (filterRadiusPercent * pixel_size);
     // draw a circle in the mask mat
     cv::Point circleCenter = cv::Point(circularMask.cols / 2, circularMask.rows / 2);
     cv::circle(circularMask, circleCenter, filter_radius_pixels, cv::Scalar(255, 0, 0), -1);
 
     //the mask is white in the center - low pass
     // invert if high pass is needed
-    if(high_pass)
+    if(parameters.high_pass)
     {
         cv::bitwise_not(circularMask, circularMask);
+    }
+
+    if(parameters.band_pass)
+    {
+        // need to make two circles for band pass and take the inersection 
+        // draw a smaller black circle in the middle of the larger circle
+        circleCenter = cv::Point(circularMask.cols / 2, circularMask.rows / 2);
+        cv::circle(circularMask, circleCenter, parameters.filter_radius_2 * pixel_size, cv::Scalar(0, 0, 0), -1);
+
     }
 }
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -198,6 +250,10 @@ void do_DFT(cv::Mat &I, cv::Mat &output)
 {
 
     using namespace cv;
+
+    std::cout << "size of input in do_DFT: "<< I.size() << "\n";
+
+    // normalize(I, I, 0, 1, NORM_MINMAX);
 
     Mat padded;                            //expand input image to optimal size
     int m = getOptimalDFTSize( I.rows );
@@ -989,7 +1045,7 @@ void utility::DFT(image &src, image &tgt, bool isColor, ROI ROI_parameters)
 
     //copy ROI to Mat
     cv::Mat roiMat_uchar;
-    image_to_Mat_uchar(src, roiMat_uchar, ROI_parameters);
+    image_to_Mat_uchar(src, roiMat_uchar, false, ROI_parameters);
 
     //show roi with opencv functions
     // cv::imshow("ROI from image", roiMat_uchar);
@@ -1121,8 +1177,41 @@ void utility::dft_filter(image &src, image &tgt, bool isColor, ROI ROI_parameter
     tgt.copyImage(src);
 
     //copy ROI to Mat
-    cv::Mat roiMat_uchar;
-    image_to_Mat_uchar(src, roiMat_uchar, ROI_parameters);
+    cv::Mat roiMat_uchar, input_temp;
+    image_to_Mat_uchar(src, input_temp, isColor, ROI_parameters);
+
+    input_temp.convertTo(input_temp, CV_32F);
+
+    cv::Mat colors[3];
+
+    std::cout << "Number of channels in input_temp: "<< input_temp.channels() << " type: " << input_temp.type() << std::endl;
+
+    if (isColor)
+    {
+        //convert BGR to HSV and get  needed component 
+        cv::Mat temp(input_temp.size(), input_temp.type());
+        cv::cvtColor(input_temp, temp, cv::COLOR_BGR2HSV);
+
+
+        cv::split(temp, colors);
+
+        if (ROI_parameters.H_filter)
+        {
+            roiMat_uchar = colors[0];
+        }
+        if (ROI_parameters.V_filter)
+        {
+            roiMat_uchar = colors[2];
+        }
+
+        printf("min max of colors[0]: \n");
+        print_max_min(colors[0]);
+        printf("min max of colors[1]: \n");
+        print_max_min(colors[1]);
+        printf("min max of colors[2]: \n");
+        print_max_min(colors[2]);
+
+    }
 
     /* 
         DFT code adapted from opencv docs
@@ -1132,6 +1221,10 @@ void utility::dft_filter(image &src, image &tgt, bool isColor, ROI ROI_parameter
     // convert image to float
     cv::Mat Mat_roi_float;
     roiMat_uchar.convertTo(Mat_roi_float, CV_32F);
+
+    std::cout << "Number of channels in Mat_roi_float: "<< Mat_roi_float.channels() << " type: " << Mat_roi_float.type() << std::endl;
+
+    // cv::normalize(Mat_roi_float, Mat_roi_float, 0, 1, cv::NORM_MINMAX);
     
     //get optimal image image size for dft
     int rowPad = cv::getOptimalDFTSize(Mat_roi_float.rows);
@@ -1139,6 +1232,10 @@ void utility::dft_filter(image &src, image &tgt, bool isColor, ROI ROI_parameter
     // pad the image
     cv::copyMakeBorder(Mat_roi_float, Mat_roi_float, 0, rowPad - Mat_roi_float.rows, 0, colPad - Mat_roi_float.cols, cv::BORDER_CONSTANT, cv::Scalar::all(0));
 
+    std::cout << "rowpad, colpad: " << rowPad << ", " << colPad << std::endl;
+
+    // cv::imshow("input with border", Mat_roi_float);
+    // cv::waitKey();
 
     // DFT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     // planes will hold the the complex and real components from the dft
@@ -1162,7 +1259,9 @@ void utility::dft_filter(image &src, image &tgt, bool isColor, ROI ROI_parameter
 
     //make the circular filter mask
     cv::Mat circularMask;
-    make_circular_filter(circularMask, magnitude.size(), ROI_parameters.filter_radius, ROI_parameters.high_pass);
+    make_circular_filter(circularMask, magnitude.size(), ROI_parameters);
+
+    std::cout << "circular mask size: " << circularMask.size() << "\n";
 
     // cv::imshow("circular mask", circularMask);
     // cv::waitKey(0);
@@ -1205,41 +1304,88 @@ void utility::dft_filter(image &src, image &tgt, bool isColor, ROI ROI_parameter
     cv::convertScaleAbs(dft_of_idft, dft_of_idft, 255);
 
     char outName[4096];
-
     sprintf(outName, "%.1024s_filtered_DFT.pgm", ROI_parameters.ogImageName);
-
     cv::imwrite(outName, dft_of_idft);
 
-    cv::normalize(idft_image, idft_image, 0, 1, cv::NORM_MINMAX);
-    cv::convertScaleAbs(idft_image, idft_image, 255);
 
-    printf("min max of idft_image after norm: \n");
-    print_max_min(idft_image);
+    // crop output to be the same as the input
+    cv::Rect cropArea(0, 0, input_temp.cols, input_temp.rows);
+    cv::Mat idft_image_crop = idft_image(cropArea).clone();
+
+    std::cout << "Number of channels in idft_image: "<< idft_image.channels() << " type: " << idft_image.type() << " size: " << idft_image.size << std::endl;
+    std::cout << "Number of channels in idft_image_crop: "<< idft_image_crop.channels() << " type: " << idft_image_crop.type() << " size: " << idft_image_crop.size << std::endl;
+
 
     // handle output %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     // place into tgt image obj
     cv::Mat imageOut_uchar;
-    idft_image.convertTo(imageOut_uchar, CV_8U);
-    // cv::normalize(idft_image, imageOut_uchar, 0, 255, cv::NORM_MINMAX, CV_8U);
-    printf("min max of imageOut_uchar: \n");
-    print_max_min(imageOut_uchar);
+    cv::normalize(idft_image_crop, idft_image_crop, 0, 1, cv::NORM_MINMAX);
+
+    if (!isColor)
+    {
+        cv::convertScaleAbs(idft_image_crop, idft_image_crop, 255);
+        idft_image_crop.convertTo(imageOut_uchar, CV_8U);
+    }
+
+    // printf("min max of imageOut_uchar: \n");
+    // print_max_min(imageOut_uchar);
+
+    cv::Mat colors_out[3];
+
+
+    //if color convert from HSV back to RGB
+    if (isColor)
+    {
+        if (ROI_parameters.H_filter)
+        {
+            // cv::normalize(idft_image_crop, idft_image_crop, 0, 365, cv::NORM_MINMAX, colors[1].type());
+            colors[0] = idft_image_crop;
+        }
+        if (ROI_parameters.V_filter)
+        {
+            // cv::normalize(idft_image_crop, idft_image_crop, 0, 1, cv::NORM_MINMAX, colors[1].type());
+            colors[2] = idft_image_crop;
+        }
+
+        //merge channels then convert HSV to BGR
+        cv::Mat temp(input_temp.size(), input_temp.type());
+
+        std::cout << "Number of channels in temp: "<< temp.channels() << " type: " << temp.type() << " size: " << temp.size << std::endl;
+        std::cout << "Number of channels in colors[0]: "<< colors[0].channels() << " type: " << colors[0].type() << " size: " << colors[0].size << std::endl;
+        std::cout << "Number of channels in colors[1]: "<< colors[1].channels() << " type: " << colors[1].type() << " size: " << colors[1].size << std::endl;
+        std::cout << "Number of channels in colors[2]: "<< colors[2].channels() << " type: " << colors[2].type() << " size: " << colors[2].size << std::endl;
+
+
+        cv::merge(colors, 3, temp);
+        cv::cvtColor(temp, temp, cv::COLOR_HSV2BGR);
+        
+        // cv::normalize(temp, temp, 0, 1, cv::NORM_MINMAX);
+        cv::convertScaleAbs(idft_image_crop, idft_image_crop, 255);
+        // convert to uchar type with 3 channels
+        temp.convertTo(temp, CV_8UC3);
+
+        // split back into colors array
+        cv::split(temp, colors_out);
+
+    }
+
+    std::cout << "Number of channels in colors_out[0]: "<< colors_out[0].channels() << " type: " << colors_out[0].type() << " size: " << colors_out[0].size << std::endl;
+
 
     for (int row = Y, matRow = 0; row < Y + Sy && matRow < imageOut_uchar.rows; ++row, ++matRow)
     for (int col = X, matCol = 0; col < X + Sx && matCol < imageOut_uchar.cols; ++col, ++matCol)
     if(src.isInbounds(row, col))
     {
 
-        int newPixel = imageOut_uchar.at<uchar>(matRow, matCol);
-
         if (isColor)
         {
-            tgt.setPixel(row, col, RED, newPixel);
-            tgt.setPixel(row, col, GREEN, newPixel);
-            tgt.setPixel(row, col, BLUE, newPixel);
+            tgt.setPixel(row, col, RED, colors_out[2].at<uchar>(matRow, matCol));
+            tgt.setPixel(row, col, GREEN, colors_out[1].at<uchar>(matRow, matCol));
+            tgt.setPixel(row, col, BLUE, colors_out[0].at<uchar>(matRow, matCol));
         }
 
         else 
-            tgt.setPixel(row, col, newPixel);
+            tgt.setPixel(row, col, imageOut_uchar.at<uchar>(matRow, matCol));
 
     }
 }
