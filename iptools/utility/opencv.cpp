@@ -15,6 +15,10 @@
 #define MINHUE 0.0
 #define MAXHUE 360.0
 
+// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+// Various helper functions
+// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 template <class T, class V>
 T range_transform(const V in, const V inMin, const V inMax, const T outMin, const T outMax)
 {
@@ -33,7 +37,206 @@ T range_transform(const V in, const V inMin, const V inMax, const T outMin, cons
         return (T)((((in - inMin) * (outMax - outMin)) / (inMax - inMin)) + outMin);
 }
 
+void show_dft_magnitude_from_complex(cv::Mat in)
+{
 
+
+
+    // holds complex components of dft
+    cv::Mat planes[] = {cv::Mat_<float>(in), cv::Mat::zeros(in.size(), CV_32F)};
+    // cv::Mat planes[2];
+    cv::Mat complex_roiMat;
+    merge(planes, 2, complex_roiMat);
+
+    // split result into planes
+    cv::split(complex_roiMat, planes);
+    cv::magnitude(planes[0], planes[1], planes[0]);
+    cv::Mat mag_roiMat = planes[0];
+
+    mag_roiMat += cv::Scalar::all(1);
+    cv::log(mag_roiMat, mag_roiMat);
+
+    //crop spectrum
+    mag_roiMat = mag_roiMat(cv::Rect(0, 0, mag_roiMat.cols & -2, mag_roiMat.rows & -2));
+
+    // place origin at image center
+
+    int cx = mag_roiMat.cols / 2;
+    int cy = mag_roiMat.rows / 2;
+
+    cv::Mat q0(mag_roiMat, cv::Rect(0, 0, cx, cy));   // Top-Left - Create a ROI per quadrant
+    cv::Mat q1(mag_roiMat, cv::Rect(cx, 0, cx, cy));  // Top-Right
+    cv::Mat q2(mag_roiMat, cv::Rect(0, cy, cx, cy));  // Bottom-Left
+    cv::Mat q3(mag_roiMat, cv::Rect(cx, cy, cx, cy)); // Bottom-Right
+    cv::Mat tmp;                           // swap quadrants (Top-Left with Bottom-Right)
+    q0.copyTo(tmp);
+    q3.copyTo(q0);
+    tmp.copyTo(q3);
+    q1.copyTo(tmp);                    // swap quadrant (Top-Right with Bottom-Left)
+    q2.copyTo(q1);
+    tmp.copyTo(q2);
+    cv::normalize(mag_roiMat, mag_roiMat, 0, 1, cv::NORM_MINMAX); // Transform the matrix with float values into a
+                                            // viewable image form (float between values 0 and 1).
+
+    // cv::imshow("Input Image"       , roiMat   );    // Show the result
+    cv::imshow("spectrum magnitude", mag_roiMat);
+    cv::waitKey();
+}
+
+
+// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+// image pixels in ROI to a uchar Mat (CV_8U)
+// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+void image_to_Mat_uchar(image &src, cv::Mat &outMat_uchar, ROI parameters)
+{
+    // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    // load ROI from image object, copy pixels into cv::Mat
+    // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+	// ROI variables
+	unsigned int Sx, Sy, X, Y;
+	Sx = parameters.Sx;
+	Sy = parameters.Sy;
+	X = parameters.X;
+	Y = parameters.Y;
+
+    // setup mat for ROI - will hold uchar type - values on range [0 255]
+    cv::Mat roiMat_uchar( Sy, Sx, CV_8U);
+
+    // copy pixels from ROI into cv Mat
+	for (int row = Y, matRow = 0; row < Y + Sy; ++row, ++matRow)
+    for (int col = X, matCol = 0; col < X + Sx; ++col, ++matCol)
+    if(src.isInbounds(row, col))
+    {
+        // roiMat_int(matRow, matCol) =  src.getPixel(row, col);
+        roiMat_uchar.at<uchar>(matRow, matCol) = src.getPixel(row, col);
+    }
+
+    // convert input to 8bit 
+    // ** may not need this 
+    cv::convertScaleAbs(roiMat_uchar, outMat_uchar);
+}
+
+// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+/* 
+    move the dft image to the center of the Mat
+    can run this same funtion again to move the center back to the top left before iDFT
+ 
+    does this :
+    q0  q1
+    q2  q3
+
+    TO
+
+    q3  q2
+    q1  q0
+
+ 
+    adapted from opencv docs
+*/
+void swap_quadrants(cv::Mat &magI)
+{
+    // crop the spectrum, if it has an odd number of rows or columns
+    magI = magI(cv::Rect(0, 0, magI.cols & -2, magI.rows & -2));
+    // rearrange the quadrants of Fourier image  so that the origin is at the image center
+    int cx = magI.cols/2;
+    int cy = magI.rows/2;
+    cv::Mat q0(magI, cv::Rect(0, 0, cx, cy));   // Top-Left - Create a ROI per quadrant
+    cv::Mat q1(magI, cv::Rect(cx, 0, cx, cy));  // Top-Right
+    cv::Mat q2(magI, cv::Rect(0, cy, cx, cy));  // Bottom-Left
+    cv::Mat q3(magI, cv::Rect(cx, cy, cx, cy)); // Bottom-Right
+    cv::Mat tmp;                           // swap quadrants (Top-Left with Bottom-Right)
+    q0.copyTo(tmp);
+    q3.copyTo(q0);
+    tmp.copyTo(q3);
+    q1.copyTo(tmp);                    // swap quadrant (Top-Right with Bottom-Left)
+    q2.copyTo(q1);
+    tmp.copyTo(q2);
+}
+// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+//make a filter to use on the image in the fourier domain
+void make_circular_filter(cv::Mat &circularMask, cv::Size filterSize, double filterRadiusPecent, uchar high_pass)
+{
+    // generate circular filter mask. w/ circle at center of image
+    circularMask = cv::Mat::zeros(filterSize, CV_8U);
+
+    int filter_radius_pixels = (int)(filterRadiusPecent * circularMask.rows);
+    // draw a circle in the mask mat
+    cv::Point circleCenter = cv::Point(circularMask.cols / 2, circularMask.rows / 2);
+    cv::circle(circularMask, circleCenter, filter_radius_pixels, cv::Scalar(255, 0, 0), -1);
+
+    //the mask is white in the center - low pass
+    // invert if high pass is needed
+    if(high_pass)
+    {
+        cv::bitwise_not(circularMask, circularMask);
+    }
+}
+// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+// adapted from code found on stackoverflow
+// link: https://stackoverflow.com/questions/15955305/find-maximum-value-of-a-cvmat
+void print_max_min(const cv::Mat &in)
+{
+
+    double minVal; 
+    double maxVal; 
+    cv::Point minLoc; 
+    cv::Point maxLoc;
+
+    minMaxLoc( in, &minVal, &maxVal, &minLoc, &maxLoc );
+
+    std::cout << "min val: " << minVal << endl;
+    std::cout << "max val: " << maxVal << endl;
+}
+// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+//  adapted from the opencv docs
+void do_DFT(cv::Mat &I, cv::Mat &output)
+{
+
+    using namespace cv;
+
+    Mat padded;                            //expand input image to optimal size
+    int m = getOptimalDFTSize( I.rows );
+    int n = getOptimalDFTSize( I.cols ); // on the border add zero values
+    copyMakeBorder(I, padded, 0, m - I.rows, 0, n - I.cols, BORDER_CONSTANT, Scalar::all(0));
+    Mat planes[] = {Mat_<float>(padded), Mat::zeros(padded.size(), CV_32F)};
+    Mat complexI;
+    merge(planes, 2, complexI);         // Add to the expanded another plane with zeros
+    dft(complexI, complexI);            // this way the result may fit in the source matrix
+    // compute the magnitude and switch to logarithmic scale
+    // => log(1 + sqrt(Re(DFT(I))^2 + Im(DFT(I))^2))
+    split(complexI, planes);                   // planes[0] = Re(DFT(I), planes[1] = Im(DFT(I))
+    magnitude(planes[0], planes[1], planes[0]);// planes[0] = magnitude
+    Mat magI = planes[0];
+    magI += Scalar::all(1);                    // switch to logarithmic scale
+    log(magI, magI);
+    // crop the spectrum, if it has an odd number of rows or columns
+    magI = magI(Rect(0, 0, magI.cols & -2, magI.rows & -2));
+    // rearrange the quadrants of Fourier image  so that the origin is at the image center
+    int cx = magI.cols/2;
+    int cy = magI.rows/2;
+    Mat q0(magI, Rect(0, 0, cx, cy));   // Top-Left - Create a ROI per quadrant
+    Mat q1(magI, Rect(cx, 0, cx, cy));  // Top-Right
+    Mat q2(magI, Rect(0, cy, cx, cy));  // Bottom-Left
+    Mat q3(magI, Rect(cx, cy, cx, cy)); // Bottom-Right
+    Mat tmp;                           // swap quadrants (Top-Left with Bottom-Right)
+    q0.copyTo(tmp);
+    q3.copyTo(q0);
+    tmp.copyTo(q3);
+    q1.copyTo(tmp);                    // swap quadrant (Top-Right with Bottom-Left)
+    q2.copyTo(q1);
+    tmp.copyTo(q2);
+    normalize(magI, magI, 0, 1, NORM_MINMAX); // Transform the matrix with float values into a
+                                            // viewable image form (float between values 0 and 1).
+    // imshow("Input Image"       , I   );    // Show the result
+    // imshow("spectrum magnitude", magI);
+    // waitKey();
+    magI.copyTo(output);
+}
 /* *************************************************************
 
     some code below adapted from OpenCV examples on GitHub
@@ -677,7 +880,153 @@ Project 4 code starts here
  */
 
 
+// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+// DFT with opencv
+// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+// void utility::DFT(image &src, image &tgt, bool isColor, ROI ROI_parameters)
+// {
+//     // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+//     // load ROI from image object, copy pixels into cv::Mat
+//     // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+// 	// ROI variables
+// 	unsigned int Sx, Sy, X, Y;
+// 	Sx = ROI_parameters.Sx;
+// 	Sy = ROI_parameters.Sy;
+// 	X = ROI_parameters.X;
+// 	Y = ROI_parameters.Y;
+
+//     //setup tgt
+//     tgt.copyImage(src);
+
+//     // copy image pixels to Mat
+//     cv::Mat roiMat;
+//     image_to_Mat_uchar(src, roiMat, ROI_parameters);
+
+//     // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+//     //  begin DFT code
+//     // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+//     /* 
+//         DFT code adapted from opencv docs
+//         https://docs.opencv.org/3.4/d8/d01/tutorial_discrete_fourier_transform.html
+//      */    
+    
+//     // get optimal size of Mat for dft, use to add border to ROI 
+//     cv::Mat padded;
+//     int optimal_rows = cv::getOptimalDFTSize( roiMat.rows );
+//     int optimal_cols = cv::getOptimalDFTSize( roiMat.cols );
+//     cv::copyMakeBorder( roiMat, padded, 0, optimal_rows - roiMat.rows, 0, optimal_cols - roiMat.cols, cv::BORDER_CONSTANT, cv::Scalar::all(0));
+
+//     // holds complex components of dft
+//     // copies padded Mat and all zeros Mat to planes[] and converts padded to float
+//     cv::Mat planes[] = {cv::Mat_<float>(padded), cv::Mat::zeros(padded.size(), CV_32F)};
+//     cv::Mat complex_roiMat;
+//     //make a multichannel Mat from two different Mats
+//     merge(planes, 2, complex_roiMat);
+
+//     // do dft with opencv
+//     cv::dft(complex_roiMat, complex_roiMat);
+
+//     // split result into planes
+//     cv::split(complex_roiMat, planes);
+//     cv::magnitude(planes[0], planes[1], planes[0]);
+//     cv::Mat mag_roiMat = planes[0];
+
+//     mag_roiMat += cv::Scalar::all(1);
+//     cv::log(mag_roiMat, mag_roiMat);
+
+//     // move dft origin to center
+//     swap_quadrants(mag_roiMat);
+
+//     cv::normalize(mag_roiMat, mag_roiMat, 0, 1, cv::NORM_MINMAX); // Transform the matrix with float values into a
+//                                             // viewable image form (float between values 0 and 1).
+
+//     // cv::imshow("Input Image"       , roiMat   );    // Show the result
+//     // cv::imshow("spectrum magnitude", mag_roiMat);
+//     // cv::waitKey();
+
+//     // result is in mag_roiMat
+//     // copy back to image object
+
+//     // convert float Mat with range [0 1] to range [0 255] to place in Image obj
+//     cv::Mat_<int> intMat;
+//     mag_roiMat.convertTo(intMat, CV_32S, 255);
+//     // cv::Mat_<unsigned short> tempMat(mag_roiMat);
+
+//     // printf("TYPE OF THE FUCKING MAT: %d\n", mag_roiMat.type());
+
+//     for (int row = Y, matRow = 0; row < Y + Sy && matRow < intMat.rows; ++row, ++matRow)
+//     for (int col = X, matCol = 0; col < X + Sx && matCol < intMat.cols; ++col, ++matCol)
+//     if(src.isInbounds(row, col))
+//     {
+
+//         int newPixel = intMat(matRow, matCol);
+
+//         if (isColor)
+//         {
+//             tgt.setPixel(row, col, RED, newPixel);
+//             tgt.setPixel(row, col, GREEN, newPixel);
+//             tgt.setPixel(row, col, BLUE, newPixel);
+//         }
+
+//         else 
+//             tgt.setPixel(row, col, newPixel);
+
+//     }
+// }
+
 void utility::DFT(image &src, image &tgt, bool isColor, ROI ROI_parameters)
+{
+    // ROI variables
+	unsigned int Sx, Sy, X, Y;
+	Sx = ROI_parameters.Sx;
+	Sy = ROI_parameters.Sy;
+	X = ROI_parameters.X;
+	Y = ROI_parameters.Y;
+
+
+    //copy ROI to Mat
+    cv::Mat roiMat_uchar;
+    image_to_Mat_uchar(src, roiMat_uchar, ROI_parameters);
+
+    //show roi with opencv functions
+    // cv::imshow("ROI from image", roiMat_uchar);
+    // cv::waitKey(0);
+
+    /* 
+        DFT code adapted from opencv docs
+        https://docs.opencv.org/3.4/d8/d01/tutorial_discrete_fourier_transform.html
+     */    
+
+    // convert image to float
+    cv::Mat Mat_roi_float;
+    roiMat_uchar.convertTo(Mat_roi_float, CV_32F);
+    
+    // // handle output %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    // // place into tgt image obj
+    cv::Mat imageOut_uchar;
+
+    do_DFT(Mat_roi_float, imageOut_uchar);
+
+    // cv::imshow("dft image", imageOut_uchar);
+    // cv::waitKey();
+
+    // convert result to proper range for saving 
+    cv::convertScaleAbs(imageOut_uchar, imageOut_uchar, 255);
+    // set file name and save
+    char outName[4096];
+    sprintf(outName, "%.1024s_DFT.pgm", ROI_parameters.ogImageName);
+    cv::imwrite(outName, imageOut_uchar);
+}
+
+/* 
+
+Converts to fourier domain then back to spatial domain
+
+ */
+void utility::IDFT(image &src, image &tgt, bool isColor, ROI ROI_parameters)
 {
         
     //implemented with opencv functions 
@@ -707,78 +1056,180 @@ void utility::DFT(image &src, image &tgt, bool isColor, ROI ROI_parameters)
 
     // convert input to 8bit 
     // cv::Mat roiMat_CV_8U, otsu_result_CV_8U;
+    // 0 to 255 range
     cv::convertScaleAbs(roiMat_int, roiMat);
-
 
     /* 
         DFT code adapted from opencv docs
         https://docs.opencv.org/3.4/d8/d01/tutorial_discrete_fourier_transform.html
      */    
 
-    // get optimal size of Mat for dft, use to add border to ROI 
-    cv::Mat padded;
-    int optimal_rows = cv::getOptimalDFTSize( roiMat.rows );
-    int optimal_cols = cv::getOptimalDFTSize( roiMat.cols );
-    cv::copyMakeBorder( roiMat, padded, 0, optimal_rows - roiMat.rows, 0, optimal_cols - roiMat.cols, cv::BORDER_CONSTANT, cv::Scalar::all(0));
+    // convert image to float
+    cv::Mat roiMatFloat;
+    roiMat.convertTo(roiMatFloat, CV_32F);
 
-    // holds complex components of dft
-    cv::Mat planes[] = {cv::Mat_<float>(padded), cv::Mat::zeros(padded.size(), CV_32F)};
-    cv::Mat complex_roiMat;
-    merge(planes, 2, complex_roiMat);
+    //dft
 
-    // do dft with opencv
-    cv::dft(complex_roiMat, complex_roiMat);
+    cv::Mat dft;
+    cv::dft(roiMatFloat, dft, cv::DFT_SCALE | cv:: DFT_COMPLEX_OUTPUT);
 
-    // split result into planes
-    cv::split(complex_roiMat, planes);
-    cv::magnitude(planes[0], planes[1], planes[0]);
-    cv::Mat mag_roiMat = planes[0];
+    cv::Mat idft;
+    cv::dft(dft, idft, cv::DFT_INVERSE | cv::DFT_REAL_OUTPUT);
 
-    mag_roiMat += cv::Scalar::all(1);
-    cv::log(mag_roiMat, mag_roiMat);
+    cv::Mat imageOut;
+    idft.convertTo(imageOut, CV_8U);
 
-    //crop spectrum
-    mag_roiMat = mag_roiMat(cv::Rect(0, 0, mag_roiMat.cols & -2, mag_roiMat.rows & -2));
 
-    // place origin at image center
+    // printf("TYPE OF THE FUCKING MAT: %d\n", inverseFourierTransform.type());
 
-    int cx = mag_roiMat.cols / 2;
-    int cy = mag_roiMat.rows / 2;
-
-    cv::Mat q0(mag_roiMat, cv::Rect(0, 0, cx, cy));   // Top-Left - Create a ROI per quadrant
-    cv::Mat q1(mag_roiMat, cv::Rect(cx, 0, cx, cy));  // Top-Right
-    cv::Mat q2(mag_roiMat, cv::Rect(0, cy, cx, cy));  // Bottom-Left
-    cv::Mat q3(mag_roiMat, cv::Rect(cx, cy, cx, cy)); // Bottom-Right
-    cv::Mat tmp;                           // swap quadrants (Top-Left with Bottom-Right)
-    q0.copyTo(tmp);
-    q3.copyTo(q0);
-    tmp.copyTo(q3);
-    q1.copyTo(tmp);                    // swap quadrant (Top-Right with Bottom-Left)
-    q2.copyTo(q1);
-    tmp.copyTo(q2);
-    cv::normalize(mag_roiMat, mag_roiMat, 0, 1, cv::NORM_MINMAX); // Transform the matrix with float values into a
-                                            // viewable image form (float between values 0 and 1).
-
-    // cv::imshow("Input Image"       , roiMat   );    // Show the result
-    // cv::imshow("spectrum magnitude", mag_roiMat);
-    // cv::waitKey();
-
-    // result is in mag_roiMat
-    // copy back to image object
-
-    // convert float Mat with range [0 1] to range [0 255] to place in Image obj
-    cv::Mat_<int> intMat;
-    mag_roiMat.convertTo(intMat, CV_32S, 255);
-    // cv::Mat_<unsigned short> tempMat(mag_roiMat);
-
-    printf("TYPE OF THE FUCKING MAT: %d\n", mag_roiMat.type());
-
-    for (int row = Y, matRow = 0; row < Y + Sy && matRow < intMat.rows; ++row, ++matRow)
-    for (int col = X, matCol = 0; col < X + Sx && matCol < intMat.cols; ++col, ++matCol)
+    for (int row = Y, matRow = 0; row < Y + Sy && matRow < imageOut.rows; ++row, ++matRow)
+    for (int col = X, matCol = 0; col < X + Sx && matCol < imageOut.cols; ++col, ++matCol)
     if(src.isInbounds(row, col))
     {
 
-        int newPixel = intMat(matRow, matCol);
+        int newPixel = imageOut.at<uchar>(matRow, matCol);
+
+        if (isColor)
+        {
+            tgt.setPixel(row, col, RED, newPixel);
+            tgt.setPixel(row, col, GREEN, newPixel);
+            tgt.setPixel(row, col, BLUE, newPixel);
+        }
+
+        else 
+            tgt.setPixel(row, col, newPixel);
+
+    }
+}
+
+/* 
+
+Converts to fourier domain, applies filter, then converts back to spatial domain
+
+ */
+void utility::dft_filter(image &src, image &tgt, bool isColor, ROI ROI_parameters)
+{
+
+    // ROI variables
+	unsigned int Sx, Sy, X, Y;
+	Sx = ROI_parameters.Sx;
+	Sy = ROI_parameters.Sy;
+	X = ROI_parameters.X;
+	Y = ROI_parameters.Y;
+
+    //setup tgt
+    tgt.copyImage(src);
+
+    //copy ROI to Mat
+    cv::Mat roiMat_uchar;
+    image_to_Mat_uchar(src, roiMat_uchar, ROI_parameters);
+
+    /* 
+        DFT code adapted from opencv docs
+        https://docs.opencv.org/3.4/d8/d01/tutorial_discrete_fourier_transform.html
+     */    
+
+    // convert image to float
+    cv::Mat Mat_roi_float;
+    roiMat_uchar.convertTo(Mat_roi_float, CV_32F);
+    
+    //get optimal image image size for dft
+    int rowPad = cv::getOptimalDFTSize(Mat_roi_float.rows);
+    int colPad = cv::getOptimalDFTSize(Mat_roi_float.cols);
+    // pad the image
+    cv::copyMakeBorder(Mat_roi_float, Mat_roi_float, 0, rowPad - Mat_roi_float.rows, 0, colPad - Mat_roi_float.cols, cv::BORDER_CONSTANT, cv::Scalar::all(0));
+
+
+    // DFT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    // planes will hold the the complex and real components from the dft
+    cv::Mat planes[2];
+    cv::Mat Mat_roi_complex_float;
+    
+    // do dft
+    cv::dft(Mat_roi_float, Mat_roi_complex_float, cv::DFT_SCALE | cv::DFT_COMPLEX_OUTPUT);
+
+    // bring the origin to the center by swapping the quadrants in the image
+    swap_quadrants(Mat_roi_complex_float);
+
+    // split the real and imaginary components into the planes array -> planes[0] = real planes[1] = imag
+    cv::split(Mat_roi_complex_float, planes);
+
+    //get phase and magnitude from the real and imaginary components
+    cv::Mat phase, magnitude;
+    phase.zeros(planes[0].rows, planes[0].cols, CV_32F);
+    magnitude.zeros(planes[0].rows, planes[0].cols, CV_32F);
+    cv::cartToPolar(planes[0], planes[1], magnitude, phase);
+
+    //make the circular filter mask
+    cv::Mat circularMask;
+    make_circular_filter(circularMask, magnitude.size(), ROI_parameters.filter_radius, ROI_parameters.high_pass);
+
+    // cv::imshow("circular mask", circularMask);
+    // cv::waitKey(0);
+    
+    // filter image - only copy over pixels where filter is white [255]
+    // only apply filter to the magnitude
+    cv::Mat magnitude_filtered(magnitude.size(), magnitude.type());
+    magnitude.copyTo(magnitude_filtered, circularMask);
+    // dont apply to phase
+    // phase.copyTo(phase, circularMask);
+
+    printf("min max of Magnitude: \n");
+    print_max_min(magnitude);
+    printf("min max of circularmask: \n");
+    print_max_min(circularMask);
+
+    // printf("types of magnitude filtered, phase, circularFilter, magnitude: %d %d %d %d\n", magnitude_filtered.type(), phase.type(), circularMask.type(), magnitude.type());
+
+    //convert phase and magnitude back to real and imaginary components
+    cv::polarToCart(magnitude_filtered, phase, planes[0], planes[1]);
+    //merge planes (real and imag) into one Mat
+    cv::Mat idft_image;
+    cv::merge(planes, 2, idft_image);
+
+    // bring the origin back to its original position
+    swap_quadrants(idft_image);
+
+    cv::dft(idft_image, idft_image, cv::DFT_INVERSE | cv::DFT_REAL_OUTPUT);
+
+    printf("min max of idft_image: \n");
+    print_max_min(idft_image);
+
+    cv::Mat dft_of_idft;
+
+    do_DFT(idft_image, dft_of_idft);
+
+    printf("min max of dft_of_idft: \n");
+    print_max_min(dft_of_idft);
+
+    cv::convertScaleAbs(dft_of_idft, dft_of_idft, 255);
+
+    char outName[4096];
+
+    sprintf(outName, "%.1024s_filtered_DFT.pgm", ROI_parameters.ogImageName);
+
+    cv::imwrite(outName, dft_of_idft);
+
+    cv::normalize(idft_image, idft_image, 0, 1, cv::NORM_MINMAX);
+    cv::convertScaleAbs(idft_image, idft_image, 255);
+
+    printf("min max of idft_image after norm: \n");
+    print_max_min(idft_image);
+
+    // handle output %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    // place into tgt image obj
+    cv::Mat imageOut_uchar;
+    idft_image.convertTo(imageOut_uchar, CV_8U);
+    // cv::normalize(idft_image, imageOut_uchar, 0, 255, cv::NORM_MINMAX, CV_8U);
+    printf("min max of imageOut_uchar: \n");
+    print_max_min(imageOut_uchar);
+
+    for (int row = Y, matRow = 0; row < Y + Sy && matRow < imageOut_uchar.rows; ++row, ++matRow)
+    for (int col = X, matCol = 0; col < X + Sx && matCol < imageOut_uchar.cols; ++col, ++matCol)
+    if(src.isInbounds(row, col))
+    {
+
+        int newPixel = imageOut_uchar.at<uchar>(matRow, matCol);
 
         if (isColor)
         {

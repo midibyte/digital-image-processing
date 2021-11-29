@@ -1,2 +1,7 @@
 # DFT tests 
-./img/gallery.pgm ./result/gallery_DFT.pgm DFT 1 1500 1001 0 0
+./img/gallery.pgm ./result/gallery.pgm DFT 1 1500 1001 0 0
+./img/baboon.pgm ./result/baboon.pgm DFT 1 512 512 0 0
+./img/gallery.pgm ./result/gallery_low_pass.pgm low_pass 1 1500 1001 0 0 0.6
+./img/gallery.pgm ./result/gallery_high_pass.pgm high_pass 1 1500 1001 0 0 0.1
+./result/gallery_low_pass.pgm ./result/gallery_low_pass.pgm DFT 1 1500 1001 0 0
+./result/gallery_high_pass.pgm ./result/gallery_high_pass.pgm DFT 1 1500 1001 0 0

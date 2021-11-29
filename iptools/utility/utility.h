@@ -19,6 +19,9 @@ struct ROI
 	unsigned is_color;
 	unsigned low_pass;
 	unsigned high_pass;
+	unsigned band_pass;
+	double filter_radius;
+	double filter_radius_2;
 };
 
 struct HSI_pixel
@@ -120,6 +123,7 @@ class utility
 		static void DFT(image &src, image &tgt, bool isColor, ROI ROI_parameters);
 		static void IDFT(image &src, image &tgt, bool isColor, ROI ROI_parameters);
 		static void low_pass_filter(image &src, image &tgt, bool isColor, ROI ROI_parameters);
+		static void dft_filter(image &src, image &tgt, bool isColor, ROI ROI_parameters);
 		static void high_pass_filter(image &src, image &tgt, bool isColor, ROI ROI_parameters);
 		static void band_pass_filter(image &src, image &tgt, bool isColor, ROI ROI_parameters);
 		static void unsharp_mask(image &src, image &tgt, bool isColor, ROI ROI_parameters);

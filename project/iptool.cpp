@@ -526,7 +526,6 @@ int main (int argc, char** argv)
 			//  DFT ======================================================================================
 			else if (strncasecmp(function_name,"DFT",MAXLEN)==0) 
 	        {
-
 				bool isColor = false;
 
 				// check input -- if color image, set the flag
@@ -538,6 +537,83 @@ int main (int argc, char** argv)
 				if (debug == 1) printf("DFT (color?): (%s)\n", isColor?"true":"false");
 
 				utility::DFT(src, tgt, isColor, ROI_parameters);
+			}
+
+			//  INVERSE DFT ======================================================================================
+			else if (strncasecmp(function_name,"IDFT",MAXLEN)==0) 
+	        {
+				bool isColor = false;
+
+				// check input -- if color image, set the flag
+				if (strstr(infile, ".ppm") != NULL) 
+				{	/* PPM Color Image */
+					isColor = true;
+				}
+
+				if (debug == 1) printf("INVERSE DFT (color?): (%s)\n", isColor?"true":"false");
+
+				utility::IDFT(src, tgt, isColor, ROI_parameters);
+			}
+
+			//  FILTERING ======================================================================================
+			else if (strncasecmp(function_name,"low_pass",MAXLEN)==0 || strncasecmp(function_name,"high_pass",MAXLEN)==0) 
+	        {
+				pch = strtok(NULL, " ");
+				ROI_parameters.filter_radius = atof(pch);
+				
+				if(strncasecmp(function_name,"high_pass",MAXLEN)==0)
+				{
+					ROI_parameters.low_pass = 0;
+					ROI_parameters.high_pass = 1;
+				}
+				else
+				{
+					ROI_parameters.low_pass = 1;
+					ROI_parameters.high_pass = 0;
+				}
+				bool isColor = false;
+
+				// check input -- if color image, set the flag
+				if (strstr(infile, ".ppm") != NULL) 
+				{	/* PPM Color Image */
+					isColor = true;
+				}
+
+				if (debug == 1) printf("filterin (color?): (%s)\t(low_pass?): (%s)\t(high pass?): (%s)\n", isColor?"true":"false", ROI_parameters.low_pass?"true":"false", ROI_parameters.high_pass?"true":"false");
+
+				utility::dft_filter(src, tgt, isColor, ROI_parameters);
+			}
+			// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+			// band pass
+			else if (strncasecmp(function_name,"band_pass",MAXLEN)==0) 
+	        {
+				pch = strtok(NULL, " ");
+				ROI_parameters.filter_radius = atof(pch);
+				pch = strtok(NULL, " ");
+				ROI_parameters.filter_radius = atof(pch);
+				
+				if(strncasecmp(function_name,"high_pass",MAXLEN)==0)
+				{
+					ROI_parameters.low_pass = 0;
+					ROI_parameters.high_pass = 1;
+				}
+				else
+				{
+					ROI_parameters.low_pass = 1;
+					ROI_parameters.high_pass = 0;
+				}
+				bool isColor = false;
+
+				// check input -- if color image, set the flag
+				if (strstr(infile, ".ppm") != NULL) 
+				{	/* PPM Color Image */
+					isColor = true;
+				}
+
+				if (debug == 1) printf("filterin (color?): (%s)\t(low_pass?): (%s)\t(high pass?): (%s)\n", isColor?"true":"false", ROI_parameters.low_pass?"true":"false", ROI_parameters.high_pass?"true":"false");
+
+				utility::dft_filter(src, tgt, isColor, ROI_parameters);
 			}
 
 			// END OF FUNCTION SELECTION =================================================
@@ -587,7 +663,8 @@ int main (int argc, char** argv)
 
 		}
 
-		final.save(outfile);
+		if(!(strncasecmp(function_name,"DFT",MAXLEN)==0))
+			final.save(outfile);
 
 	}
 	fclose(fp);
