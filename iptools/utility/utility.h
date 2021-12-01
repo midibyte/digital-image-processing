@@ -11,6 +11,7 @@ struct ROI
 	// hold the size and location of the ROI
 	int Sx, Sy, X, Y;
 	char ogImageName[2048];
+	char inputImageName[2048];
 	char histogramName[2048];
 	bool isModified = false;
 	int idxROI;
@@ -24,7 +25,23 @@ struct ROI
 	double filter_radius_2;
 	unsigned V_filter;
 	unsigned H_filter;
+	double unsharp_mask_amount;
 };
+
+static void ROI_init_options(ROI &in)
+{
+	in.option = 0;
+	in.use_HSV = 0;
+	in.is_color = 0;
+	in.low_pass = 0;
+	in.high_pass = 0;
+	in.band_pass = 0;
+	in.filter_radius = 0.0;
+	in.filter_radius_2 = 0;
+	in.V_filter = 0;
+	in.H_filter = 0;
+	in.unsharp_mask_amount = 0.0;
+}
 
 struct HSI_pixel
 {
@@ -126,10 +143,7 @@ class utility
 		static void IDFT(image &src, image &tgt, bool isColor, ROI ROI_parameters);
 		static void low_pass_filter(image &src, image &tgt, bool isColor, ROI ROI_parameters);
 		static void dft_filter(image &src, image &tgt, bool isColor, ROI ROI_parameters);
-		static void high_pass_filter(image &src, image &tgt, bool isColor, ROI ROI_parameters);
-		static void band_pass_filter(image &src, image &tgt, bool isColor, ROI ROI_parameters);
 		static void unsharp_mask(image &src, image &tgt, bool isColor, ROI ROI_parameters);
-		// static void band_pass_filter(image &src, image &tgt, bool isColor, ROI ROI_parameters);
 
 
 };

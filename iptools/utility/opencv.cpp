@@ -4,7 +4,7 @@
 #include <opencv2/imgproc.hpp>
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/highgui.hpp>
-#include <limits.h>
+#include <limits.h> 
 
 
 
@@ -19,6 +19,7 @@
 // Various helper functions
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+// transforms the input range [min max] to the output range [min max]
 template <class T, class V>
 T range_transform(const V in, const V inMin, const V inMax, const T outMin, const T outMax)
 {
@@ -37,62 +38,13 @@ T range_transform(const V in, const V inMin, const V inMax, const T outMin, cons
         return (T)((((in - inMin) * (outMax - outMin)) / (inMax - inMin)) + outMin);
 }
 
-void show_dft_magnitude_from_complex(cv::Mat in)
-{
-
-
-
-    // holds complex components of dft
-    cv::Mat planes[] = {cv::Mat_<float>(in), cv::Mat::zeros(in.size(), CV_32F)};
-    // cv::Mat planes[2];
-    cv::Mat complex_roiMat;
-    merge(planes, 2, complex_roiMat);
-
-    // split result into planes
-    cv::split(complex_roiMat, planes);
-    cv::magnitude(planes[0], planes[1], planes[0]);
-    cv::Mat mag_roiMat = planes[0];
-
-    mag_roiMat += cv::Scalar::all(1);
-    cv::log(mag_roiMat, mag_roiMat);
-
-    //crop spectrum
-    mag_roiMat = mag_roiMat(cv::Rect(0, 0, mag_roiMat.cols & -2, mag_roiMat.rows & -2));
-
-    // place origin at image center
-
-    int cx = mag_roiMat.cols / 2;
-    int cy = mag_roiMat.rows / 2;
-
-    cv::Mat q0(mag_roiMat, cv::Rect(0, 0, cx, cy));   // Top-Left - Create a ROI per quadrant
-    cv::Mat q1(mag_roiMat, cv::Rect(cx, 0, cx, cy));  // Top-Right
-    cv::Mat q2(mag_roiMat, cv::Rect(0, cy, cx, cy));  // Bottom-Left
-    cv::Mat q3(mag_roiMat, cv::Rect(cx, cy, cx, cy)); // Bottom-Right
-    cv::Mat tmp;                           // swap quadrants (Top-Left with Bottom-Right)
-    q0.copyTo(tmp);
-    q3.copyTo(q0);
-    tmp.copyTo(q3);
-    q1.copyTo(tmp);                    // swap quadrant (Top-Right with Bottom-Left)
-    q2.copyTo(q1);
-    tmp.copyTo(q2);
-    cv::normalize(mag_roiMat, mag_roiMat, 0, 1, cv::NORM_MINMAX); // Transform the matrix with float values into a
-                                            // viewable image form (float between values 0 and 1).
-
-    // cv::imshow("Input Image"       , roiMat   );    // Show the result
-    cv::imshow("spectrum magnitude", mag_roiMat);
-    cv::waitKey();
-}
-
 
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-// image pixels in ROI to a uchar Mat (CV_8U)
-// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+// copy image pixels in ROI to a uchar Mat (CV_8U)
 void image_to_Mat_uchar(image &src, cv::Mat &outMat_uchar, bool isColor, ROI parameters)
 {
-    // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     // load ROI from image object, copy pixels into cv::Mat
-    // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 	// ROI variables
 	unsigned int Sx, Sy, X, Y;
@@ -115,18 +67,20 @@ void image_to_Mat_uchar(image &src, cv::Mat &outMat_uchar, bool isColor, ROI par
         roiMat_uchar = cv::Mat(Sy, Sx, CV_8U, cv::Scalar::all(0));
     }
 
+
+
     // copy pixels from ROI into cv Mat
 	for (int row = Y, matRow = 0; row < Y + Sy; ++row, ++matRow)
     for (int col = X, matCol = 0; col < X + Sx; ++col, ++matCol)
     if(src.isInbounds(row, col))
     {
         if (!isColor)
-            roiMat_uchar.at<uchar>(matRow, matCol) = src.getPixel(matRow, matCol);
+            roiMat_uchar.at<uchar>(matRow, matCol) = src.getPixel(row, col);
         else
         {
             // order is BGR
 
-            cv::Vec3b &color = roiMat_uchar.at<cv::Vec3b>(row, col);
+            cv::Vec3b &color = roiMat_uchar.at<cv::Vec3b>(matRow, matCol);
 
             // cv::Vec3b color;
             color[0] = src.getPixel(row, col, BLUE);
@@ -245,24 +199,35 @@ void print_max_min(const cv::Mat &in)
 }
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-//  adapted from the opencv docs
+
+void print_Mat_channels_type_size(std::string name, cv::Mat &in)
+{
+    std::cout << "Number of channels in " << name << ": " << in.channels() << " type: " << in.type() << " size: " << in.size << std::endl;
+}
+
+/* 
+    DFT code adapted from opencv docs
+    https://docs.opencv.org/3.4/d8/d01/tutorial_discrete_fourier_transform.html
+    
+    makes a DFT image from the input image I and places it in output
+*/  
 void do_DFT(cv::Mat &I, cv::Mat &output)
 {
-
     using namespace cv;
 
-    std::cout << "size of input in do_DFT: "<< I.size() << "\n";
+    // std::cout << "size of input in do_DFT: "<< I.size() << "\n";
 
-    // normalize(I, I, 0, 1, NORM_MINMAX);
-
+    // get the optimal DFT size and pad the original image with a border
     Mat padded;                            //expand input image to optimal size
     int m = getOptimalDFTSize( I.rows );
     int n = getOptimalDFTSize( I.cols ); // on the border add zero values
     copyMakeBorder(I, padded, 0, m - I.rows, 0, n - I.cols, BORDER_CONSTANT, Scalar::all(0));
+    
     Mat planes[] = {Mat_<float>(padded), Mat::zeros(padded.size(), CV_32F)};
     Mat complexI;
     merge(planes, 2, complexI);         // Add to the expanded another plane with zeros
     dft(complexI, complexI);            // this way the result may fit in the source matrix
+    
     // compute the magnitude and switch to logarithmic scale
     // => log(1 + sqrt(Re(DFT(I))^2 + Im(DFT(I))^2))
     split(complexI, planes);                   // planes[0] = Re(DFT(I), planes[1] = Im(DFT(I))
@@ -270,8 +235,10 @@ void do_DFT(cv::Mat &I, cv::Mat &output)
     Mat magI = planes[0];
     magI += Scalar::all(1);                    // switch to logarithmic scale
     log(magI, magI);
+    
     // crop the spectrum, if it has an odd number of rows or columns
     magI = magI(Rect(0, 0, magI.cols & -2, magI.rows & -2));
+    
     // rearrange the quadrants of Fourier image  so that the origin is at the image center
     int cx = magI.cols/2;
     int cy = magI.rows/2;
@@ -288,11 +255,30 @@ void do_DFT(cv::Mat &I, cv::Mat &output)
     tmp.copyTo(q2);
     normalize(magI, magI, 0, 1, NORM_MINMAX); // Transform the matrix with float values into a
                                             // viewable image form (float between values 0 and 1).
-    // imshow("Input Image"       , I   );    // Show the result
+    
+    // uncomment to show result 
+    // imshow("Input Image"       , I   );
     // imshow("spectrum magnitude", magI);
     // waitKey();
+   
+   
     magI.copyTo(output);
 }
+
+void do_DFT_save(cv::Mat input, char * saveName)
+{
+    // make a DFT image of the result to show the filtering in the frequency domain
+    cv::Mat dft_of_idft;
+
+    do_DFT(input, dft_of_idft);
+    // convert uchar range for display
+    cv::convertScaleAbs(dft_of_idft, dft_of_idft, 255);
+    // write the image to disk
+    char outName[4096];
+    sprintf(outName, "%.1024s_DFT.pgm", saveName);
+    cv::imwrite(outName, dft_of_idft);
+}
+
 /* *************************************************************
 
     some code below adapted from OpenCV examples on GitHub
@@ -926,113 +912,21 @@ void utility::equalize_foreground_otsu_opencv(image &src, image &tgt, bool isCol
 }
 
 
+// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+/*
 
-
-/* 
 
 Project 4 code starts here
 
- */
+*/
 
 
 // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-// DFT with opencv
-// %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-// void utility::DFT(image &src, image &tgt, bool isColor, ROI ROI_parameters)
-// {
-//     // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-//     // load ROI from image object, copy pixels into cv::Mat
-//     // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-// 	// ROI variables
-// 	unsigned int Sx, Sy, X, Y;
-// 	Sx = ROI_parameters.Sx;
-// 	Sy = ROI_parameters.Sy;
-// 	X = ROI_parameters.X;
-// 	Y = ROI_parameters.Y;
-
-//     //setup tgt
-//     tgt.copyImage(src);
-
-//     // copy image pixels to Mat
-//     cv::Mat roiMat;
-//     image_to_Mat_uchar(src, roiMat, ROI_parameters);
-
-//     // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-//     //  begin DFT code
-//     // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-//     /* 
-//         DFT code adapted from opencv docs
-//         https://docs.opencv.org/3.4/d8/d01/tutorial_discrete_fourier_transform.html
-//      */    
-    
-//     // get optimal size of Mat for dft, use to add border to ROI 
-//     cv::Mat padded;
-//     int optimal_rows = cv::getOptimalDFTSize( roiMat.rows );
-//     int optimal_cols = cv::getOptimalDFTSize( roiMat.cols );
-//     cv::copyMakeBorder( roiMat, padded, 0, optimal_rows - roiMat.rows, 0, optimal_cols - roiMat.cols, cv::BORDER_CONSTANT, cv::Scalar::all(0));
-
-//     // holds complex components of dft
-//     // copies padded Mat and all zeros Mat to planes[] and converts padded to float
-//     cv::Mat planes[] = {cv::Mat_<float>(padded), cv::Mat::zeros(padded.size(), CV_32F)};
-//     cv::Mat complex_roiMat;
-//     //make a multichannel Mat from two different Mats
-//     merge(planes, 2, complex_roiMat);
-
-//     // do dft with opencv
-//     cv::dft(complex_roiMat, complex_roiMat);
-
-//     // split result into planes
-//     cv::split(complex_roiMat, planes);
-//     cv::magnitude(planes[0], planes[1], planes[0]);
-//     cv::Mat mag_roiMat = planes[0];
-
-//     mag_roiMat += cv::Scalar::all(1);
-//     cv::log(mag_roiMat, mag_roiMat);
-
-//     // move dft origin to center
-//     swap_quadrants(mag_roiMat);
-
-//     cv::normalize(mag_roiMat, mag_roiMat, 0, 1, cv::NORM_MINMAX); // Transform the matrix with float values into a
-//                                             // viewable image form (float between values 0 and 1).
-
-//     // cv::imshow("Input Image"       , roiMat   );    // Show the result
-//     // cv::imshow("spectrum magnitude", mag_roiMat);
-//     // cv::waitKey();
-
-//     // result is in mag_roiMat
-//     // copy back to image object
-
-//     // convert float Mat with range [0 1] to range [0 255] to place in Image obj
-//     cv::Mat_<int> intMat;
-//     mag_roiMat.convertTo(intMat, CV_32S, 255);
-//     // cv::Mat_<unsigned short> tempMat(mag_roiMat);
-
-//     // printf("TYPE OF THE FUCKING MAT: %d\n", mag_roiMat.type());
-
-//     for (int row = Y, matRow = 0; row < Y + Sy && matRow < intMat.rows; ++row, ++matRow)
-//     for (int col = X, matCol = 0; col < X + Sx && matCol < intMat.cols; ++col, ++matCol)
-//     if(src.isInbounds(row, col))
-//     {
-
-//         int newPixel = intMat(matRow, matCol);
-
-//         if (isColor)
-//         {
-//             tgt.setPixel(row, col, RED, newPixel);
-//             tgt.setPixel(row, col, GREEN, newPixel);
-//             tgt.setPixel(row, col, BLUE, newPixel);
-//         }
-
-//         else 
-//             tgt.setPixel(row, col, newPixel);
-
-//     }
-// }
-
+// do DFT with opencv functions 
+// saves output to input name_DFT
 void utility::DFT(image &src, image &tgt, bool isColor, ROI ROI_parameters)
 {
     // ROI variables
@@ -1042,7 +936,6 @@ void utility::DFT(image &src, image &tgt, bool isColor, ROI ROI_parameters)
 	X = ROI_parameters.X;
 	Y = ROI_parameters.Y;
 
-
     //copy ROI to Mat
     cv::Mat roiMat_uchar;
     image_to_Mat_uchar(src, roiMat_uchar, false, ROI_parameters);
@@ -1050,11 +943,6 @@ void utility::DFT(image &src, image &tgt, bool isColor, ROI ROI_parameters)
     //show roi with opencv functions
     // cv::imshow("ROI from image", roiMat_uchar);
     // cv::waitKey(0);
-
-    /* 
-        DFT code adapted from opencv docs
-        https://docs.opencv.org/3.4/d8/d01/tutorial_discrete_fourier_transform.html
-     */    
 
     // convert image to float
     cv::Mat Mat_roi_float;
@@ -1161,6 +1049,8 @@ void utility::IDFT(image &src, image &tgt, bool isColor, ROI ROI_parameters)
 /* 
 
 Converts to fourier domain, applies filter, then converts back to spatial domain
+DFT code adapted from opencv docs
+    https://docs.opencv.org/3.4/d8/d01/tutorial_discrete_fourier_transform.html
 
  */
 void utility::dft_filter(image &src, image &tgt, bool isColor, ROI ROI_parameters)
@@ -1177,14 +1067,13 @@ void utility::dft_filter(image &src, image &tgt, bool isColor, ROI ROI_parameter
     tgt.copyImage(src);
 
     //copy ROI to Mat
-    cv::Mat roiMat_uchar, input_temp;
+    cv::Mat roiMat_uchar, input_temp, Mat_roi_float;
     image_to_Mat_uchar(src, input_temp, isColor, ROI_parameters);
-
+    //convert to float 
     input_temp.convertTo(input_temp, CV_32F);
 
+    // will hold the color channels if needed
     cv::Mat colors[3];
-
-    std::cout << "Number of channels in input_temp: "<< input_temp.channels() << " type: " << input_temp.type() << std::endl;
 
     if (isColor)
     {
@@ -1192,50 +1081,34 @@ void utility::dft_filter(image &src, image &tgt, bool isColor, ROI ROI_parameter
         cv::Mat temp(input_temp.size(), input_temp.type());
         cv::cvtColor(input_temp, temp, cv::COLOR_BGR2HSV);
 
-
         cv::split(temp, colors);
 
         if (ROI_parameters.H_filter)
         {
-            roiMat_uchar = colors[0];
+            Mat_roi_float = colors[0];
         }
-        if (ROI_parameters.V_filter)
+        else if (ROI_parameters.V_filter)
         {
-            roiMat_uchar = colors[2];
+            Mat_roi_float = colors[2];
         }
-
-        printf("min max of colors[0]: \n");
-        print_max_min(colors[0]);
-        printf("min max of colors[1]: \n");
-        print_max_min(colors[1]);
-        printf("min max of colors[2]: \n");
-        print_max_min(colors[2]);
 
     }
 
-    /* 
-        DFT code adapted from opencv docs
-        https://docs.opencv.org/3.4/d8/d01/tutorial_discrete_fourier_transform.html
-     */    
+    //handle grayscale
+    else
+    {
+        input_temp.copyTo(Mat_roi_float);
+    }
 
-    // convert image to float
-    cv::Mat Mat_roi_float;
-    roiMat_uchar.convertTo(Mat_roi_float, CV_32F);
+    // save the DFT image before filter
+    do_DFT_save(Mat_roi_float, ROI_parameters.ogImageName);
 
-    std::cout << "Number of channels in Mat_roi_float: "<< Mat_roi_float.channels() << " type: " << Mat_roi_float.type() << std::endl;
-
-    // cv::normalize(Mat_roi_float, Mat_roi_float, 0, 1, cv::NORM_MINMAX);
-    
     //get optimal image image size for dft
     int rowPad = cv::getOptimalDFTSize(Mat_roi_float.rows);
     int colPad = cv::getOptimalDFTSize(Mat_roi_float.cols);
     // pad the image
     cv::copyMakeBorder(Mat_roi_float, Mat_roi_float, 0, rowPad - Mat_roi_float.rows, 0, colPad - Mat_roi_float.cols, cv::BORDER_CONSTANT, cv::Scalar::all(0));
 
-    std::cout << "rowpad, colpad: " << rowPad << ", " << colPad << std::endl;
-
-    // cv::imshow("input with border", Mat_roi_float);
-    // cv::waitKey();
 
     // DFT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     // planes will hold the the complex and real components from the dft
@@ -1260,11 +1133,6 @@ void utility::dft_filter(image &src, image &tgt, bool isColor, ROI ROI_parameter
     //make the circular filter mask
     cv::Mat circularMask;
     make_circular_filter(circularMask, magnitude.size(), ROI_parameters);
-
-    std::cout << "circular mask size: " << circularMask.size() << "\n";
-
-    // cv::imshow("circular mask", circularMask);
-    // cv::waitKey(0);
     
     // filter image - only copy over pixels where filter is white [255]
     // only apply filter to the magnitude
@@ -1272,13 +1140,6 @@ void utility::dft_filter(image &src, image &tgt, bool isColor, ROI ROI_parameter
     magnitude.copyTo(magnitude_filtered, circularMask);
     // dont apply to phase
     // phase.copyTo(phase, circularMask);
-
-    printf("min max of Magnitude: \n");
-    print_max_min(magnitude);
-    printf("min max of circularmask: \n");
-    print_max_min(circularMask);
-
-    // printf("types of magnitude filtered, phase, circularFilter, magnitude: %d %d %d %d\n", magnitude_filtered.type(), phase.type(), circularMask.type(), magnitude.type());
 
     //convert phase and magnitude back to real and imaginary components
     cv::polarToCart(magnitude_filtered, phase, planes[0], planes[1]);
@@ -1289,20 +1150,16 @@ void utility::dft_filter(image &src, image &tgt, bool isColor, ROI ROI_parameter
     // bring the origin back to its original position
     swap_quadrants(idft_image);
 
+    // do the inverse DFT 
     cv::dft(idft_image, idft_image, cv::DFT_INVERSE | cv::DFT_REAL_OUTPUT);
 
-    printf("min max of idft_image: \n");
-    print_max_min(idft_image);
-
+    // make a DFT image of the result to show the filtering in the frequency domain
     cv::Mat dft_of_idft;
 
     do_DFT(idft_image, dft_of_idft);
-
-    printf("min max of dft_of_idft: \n");
-    print_max_min(dft_of_idft);
-
+    // convert uchar range for display
     cv::convertScaleAbs(dft_of_idft, dft_of_idft, 255);
-
+    // write the image to disk
     char outName[4096];
     sprintf(outName, "%.1024s_filtered_DFT.pgm", ROI_parameters.ogImageName);
     cv::imwrite(outName, dft_of_idft);
@@ -1312,11 +1169,8 @@ void utility::dft_filter(image &src, image &tgt, bool isColor, ROI ROI_parameter
     cv::Rect cropArea(0, 0, input_temp.cols, input_temp.rows);
     cv::Mat idft_image_crop = idft_image(cropArea).clone();
 
-    std::cout << "Number of channels in idft_image: "<< idft_image.channels() << " type: " << idft_image.type() << " size: " << idft_image.size << std::endl;
-    std::cout << "Number of channels in idft_image_crop: "<< idft_image_crop.channels() << " type: " << idft_image_crop.type() << " size: " << idft_image_crop.size << std::endl;
-
-
     // handle output %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    
     // place into tgt image obj
     cv::Mat imageOut_uchar;
     cv::normalize(idft_image_crop, idft_image_crop, 0, 1, cv::NORM_MINMAX);
@@ -1327,39 +1181,28 @@ void utility::dft_filter(image &src, image &tgt, bool isColor, ROI ROI_parameter
         idft_image_crop.convertTo(imageOut_uchar, CV_8U);
     }
 
-    // printf("min max of imageOut_uchar: \n");
-    // print_max_min(imageOut_uchar);
-
+    //used if the image is color for color channels
     cv::Mat colors_out[3];
-
 
     //if color convert from HSV back to RGB
     if (isColor)
     {
         if (ROI_parameters.H_filter)
         {
-            // cv::normalize(idft_image_crop, idft_image_crop, 0, 365, cv::NORM_MINMAX, colors[1].type());
+            cv::normalize(idft_image_crop, idft_image_crop, 0, 360, cv::NORM_MINMAX, colors[1].type());
             colors[0] = idft_image_crop;
         }
         if (ROI_parameters.V_filter)
         {
-            // cv::normalize(idft_image_crop, idft_image_crop, 0, 1, cv::NORM_MINMAX, colors[1].type());
+            cv::normalize(idft_image_crop, idft_image_crop, 0, 255, cv::NORM_MINMAX, colors[1].type());
             colors[2] = idft_image_crop;
         }
 
         //merge channels then convert HSV to BGR
         cv::Mat temp(input_temp.size(), input_temp.type());
-
-        std::cout << "Number of channels in temp: "<< temp.channels() << " type: " << temp.type() << " size: " << temp.size << std::endl;
-        std::cout << "Number of channels in colors[0]: "<< colors[0].channels() << " type: " << colors[0].type() << " size: " << colors[0].size << std::endl;
-        std::cout << "Number of channels in colors[1]: "<< colors[1].channels() << " type: " << colors[1].type() << " size: " << colors[1].size << std::endl;
-        std::cout << "Number of channels in colors[2]: "<< colors[2].channels() << " type: " << colors[2].type() << " size: " << colors[2].size << std::endl;
-
-
         cv::merge(colors, 3, temp);
         cv::cvtColor(temp, temp, cv::COLOR_HSV2BGR);
         
-        // cv::normalize(temp, temp, 0, 1, cv::NORM_MINMAX);
         cv::convertScaleAbs(idft_image_crop, idft_image_crop, 255);
         // convert to uchar type with 3 channels
         temp.convertTo(temp, CV_8UC3);
@@ -1369,23 +1212,252 @@ void utility::dft_filter(image &src, image &tgt, bool isColor, ROI ROI_parameter
 
     }
 
-    std::cout << "Number of channels in colors_out[0]: "<< colors_out[0].channels() << " type: " << colors_out[0].type() << " size: " << colors_out[0].size << std::endl;
-
-
-    for (int row = Y, matRow = 0; row < Y + Sy && matRow < imageOut_uchar.rows; ++row, ++matRow)
-    for (int col = X, matCol = 0; col < X + Sx && matCol < imageOut_uchar.cols; ++col, ++matCol)
+    for (int row = Y, matRow = 0; row < Y + Sy; ++row, ++matRow)
+    for (int col = X, matCol = 0; col < X + Sx; ++col, ++matCol)
     if(src.isInbounds(row, col))
     {
 
-        if (isColor)
+        if (isColor && matRow < colors_out[0].rows && matCol < colors_out[0].cols)
+        // if( isColor)
         {
             tgt.setPixel(row, col, RED, colors_out[2].at<uchar>(matRow, matCol));
             tgt.setPixel(row, col, GREEN, colors_out[1].at<uchar>(matRow, matCol));
             tgt.setPixel(row, col, BLUE, colors_out[0].at<uchar>(matRow, matCol));
         }
 
-        else 
+        else if (matRow < imageOut_uchar.rows && matCol < imageOut_uchar.cols)
             tgt.setPixel(row, col, imageOut_uchar.at<uchar>(matRow, matCol));
 
+    }
+}
+
+/* 
+
+does a high pass filter to get the high frequency components 
+multiplies these components by a variable
+adds them back to the original image
+does an inverse dft 
+
+DFT, high pass, multiply high frequencies and add back to original image, IDFT
+
+ */
+void utility::unsharp_mask(image &src, image &tgt, bool isColor, ROI ROI_parameters)
+{
+
+    // ROI variables
+	unsigned int Sx, Sy, X, Y;
+	Sx = ROI_parameters.Sx;
+	Sy = ROI_parameters.Sy;
+	X = ROI_parameters.X;
+	Y = ROI_parameters.Y;
+
+    //setup tgt
+    tgt.copyImage(src);
+
+    //copy ROI to Mat
+    cv::Mat roiMat_uchar, input_temp, Mat_roi_float;
+    image_to_Mat_uchar(src, input_temp, isColor, ROI_parameters);
+    //convert to float 
+    input_temp.convertTo(input_temp, CV_32F);
+
+    // will hold the color channels if needed
+    cv::Mat colors[3];
+
+    if (isColor)
+    {
+        //convert BGR to HSV and get  needed component 
+        cv::Mat temp(input_temp.size(), input_temp.type());
+        cv::cvtColor(input_temp, temp, cv::COLOR_BGR2HSV);
+        cv::split(temp, colors);
+
+        if (ROI_parameters.H_filter)
+        {
+            Mat_roi_float = colors[0];
+        }
+        else if (ROI_parameters.V_filter)
+        {
+            Mat_roi_float = colors[2];
+        }
+    }
+
+    //handle grayscale
+    else
+    {
+        input_temp.copyTo(Mat_roi_float);
+    }
+
+    /* 
+        DFT code adapted from opencv docs
+        https://docs.opencv.org/3.4/d8/d01/tutorial_discrete_fourier_transform.html
+     */    
+
+    //get optimal image image size for dft
+    int rowPad = cv::getOptimalDFTSize(Mat_roi_float.rows);
+    int colPad = cv::getOptimalDFTSize(Mat_roi_float.cols);
+    cv::Mat Mat_roi_complex_float;
+
+    // pad the image
+    cv::copyMakeBorder(Mat_roi_float, Mat_roi_complex_float, 0, rowPad - Mat_roi_float.rows, 0, colPad - Mat_roi_float.cols, cv::BORDER_CONSTANT, cv::Scalar::all(0));
+
+    // DFT %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    // planes will hold the the complex and real components from the dft
+    cv::Mat planes[2];
+    
+    // do dft
+    cv::dft(Mat_roi_complex_float, Mat_roi_complex_float, cv::DFT_SCALE | cv::DFT_COMPLEX_OUTPUT);
+
+    // save the DFT image before filter
+    do_DFT_save(Mat_roi_float, ROI_parameters.ogImageName);
+
+    // bring the origin to the center by swapping the quadrants in the image
+    swap_quadrants(Mat_roi_complex_float);
+
+    // split the real and imaginary components into the planes array -> planes[0] = real planes[1] = imag
+    cv::split(Mat_roi_complex_float, planes);
+
+    //get phase and magnitude from the real and imaginary components
+    cv::Mat phase, magnitude;
+    phase.zeros(planes[0].rows, planes[0].cols, CV_32F);
+    magnitude.zeros(planes[0].rows, planes[0].cols, CV_32F);
+    cv::cartToPolar(planes[0], planes[1], magnitude, phase);
+
+    // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    // %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    // begin masking code
+
+    //make the circular filter mask
+    cv::Mat circularMask;
+    ROI_parameters.high_pass = 1;
+    ROI_parameters.low_pass = 0;
+    make_circular_filter(circularMask, magnitude.size(), ROI_parameters);
+
+    // filter image - only copy over pixels where filter is white [255]
+    // only apply filter to the magnitude
+    cv::Mat magnitude_filtered;
+    magnitude.copyTo(magnitude_filtered, circularMask);
+    // dont apply to phase
+    // phase.copyTo(phase, circularMask);
+
+    // multiply the high frequencies then place back into original
+    // magnitude *= ROI_parameters.unsharp_mask_amount;
+
+    // original - blurred
+    magnitude_filtered = magnitude + (magnitude_filtered * ROI_parameters.unsharp_mask_amount);
+
+
+    // print_Mat_channels_type_size("magnitude", magnitude);
+    // print_Mat_channels_type_size("magnitude_filtered", magnitude_filtered);
+
+    // magnitude_filtered *= ROI_parameters.unsharp_mask_amount;
+
+    //convert phase and magnitude back to real and imaginary components
+    cv::polarToCart(magnitude_filtered, phase, planes[0], planes[1]);
+    //merge planes (real and imag) into one Mat
+    cv::Mat idft_image;
+    cv::merge(planes, 2, idft_image);
+
+    // bring the origin back to its original position
+    swap_quadrants(idft_image);
+
+    // do the inverse DFT 
+    cv::dft(idft_image, idft_image, cv::DFT_INVERSE | cv::DFT_REAL_OUTPUT);
+
+
+
+    // make a DFT image of the result to show the filtering in the frequency domain
+    cv::Mat dft_of_idft;
+
+    do_DFT(idft_image, dft_of_idft);
+    // convert uchar range for display
+    cv::convertScaleAbs(dft_of_idft, dft_of_idft, 255);
+    // write the image to disk
+    char outName[4096];
+    sprintf(outName, "%.1024s_filtered_DFT.pgm", ROI_parameters.ogImageName);
+    cv::imwrite(outName, dft_of_idft);
+
+
+    // crop output to be the same as the input
+    cv::Rect cropArea(0, 0, input_temp.cols, input_temp.rows);
+    cv::Mat idft_image_crop = idft_image(cropArea).clone();
+
+    // //unsharp masking
+    // //unsharp mask
+    // cv::Mat sharpened, temp;
+    // cv::normalize(idft_image_crop, idft_image_crop, 0, 1, cv::NORM_MINMAX);
+    // cv::normalize(Mat_roi_float, Mat_roi_float, 0, 1, cv::NORM_MINMAX);
+
+    // // imageOut_uchar.convertTo(temp, CV_32F);
+    // idft_image_crop = Mat_roi_float + (Mat_roi_float - idft_image_crop) * (float)ROI_parameters.unsharp_mask_amount;
+    
+    // // make a DFT image of the result to show the filtering in the frequency domain
+    // cv::Mat dft_of_idft_unsharp;
+
+    // do_DFT(idft_image_crop, dft_of_idft_unsharp);
+    // // convert uchar range for display
+    // cv::convertScaleAbs(dft_of_idft_unsharp, dft_of_idft_unsharp, 255);
+    // // write the image to disk
+    // // char outName[4096];
+    // sprintf(outName, "%.1024s_filtered_unsharp_DFT.pgm", ROI_parameters.ogImageName);
+    // cv::imwrite(outName, dft_of_idft_unsharp);
+
+
+    // handle output %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    
+    // place into tgt image obj
+    cv::Mat imageOut_uchar;
+    cv::normalize(idft_image_crop, idft_image_crop, 0, 1, cv::NORM_MINMAX);
+
+    if (!isColor)
+    {
+        cv::convertScaleAbs(idft_image_crop, idft_image_crop, 255);
+        idft_image_crop.convertTo(imageOut_uchar, CV_8U);
+    }
+
+    //used if the image is color for color channels
+    cv::Mat colors_out[3];
+
+    //if color convert from HSV back to RGB
+    if (isColor)
+    {
+        if (ROI_parameters.H_filter)
+        {
+            cv::normalize(idft_image_crop, idft_image_crop, 0, 360, cv::NORM_MINMAX, colors[1].type());
+            colors[0] = idft_image_crop;
+        }
+        if (ROI_parameters.V_filter)
+        {
+            cv::normalize(idft_image_crop, idft_image_crop, 0, 255, cv::NORM_MINMAX, colors[1].type());
+            colors[2] = idft_image_crop;
+        }
+
+        //merge channels then convert HSV to BGR
+        cv::Mat temp(input_temp.size(), input_temp.type());
+        cv::merge(colors, 3, temp);
+        cv::cvtColor(temp, temp, cv::COLOR_HSV2BGR);
+        
+        cv::convertScaleAbs(idft_image_crop, idft_image_crop, 255);
+        // convert to uchar type with 3 channels
+        temp.convertTo(temp, CV_8UC3);
+
+        // split back into colors array
+        cv::split(temp, colors_out);
+
+    }
+
+    for (int row = Y, matRow = 0; row < Y + Sy; ++row, ++matRow)
+    for (int col = X, matCol = 0; col < X + Sx; ++col, ++matCol)
+    if(src.isInbounds(row, col))
+    {
+
+        if (isColor && matRow < colors_out[0].rows && matCol < colors_out[0].cols)
+        // if( isColor)
+        {
+            tgt.setPixel(row, col, RED, colors_out[2].at<uchar>(matRow, matCol));
+            tgt.setPixel(row, col, GREEN, colors_out[1].at<uchar>(matRow, matCol));
+            tgt.setPixel(row, col, BLUE, colors_out[0].at<uchar>(matRow, matCol));
+        }
+
+        else if (matRow < imageOut_uchar.rows && matCol < imageOut_uchar.cols)
+            tgt.setPixel(row, col, imageOut_uchar.at<uchar>(matRow, matCol));
     }
 }

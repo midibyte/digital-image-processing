@@ -67,11 +67,11 @@ int main (int argc, char** argv)
 	// read each line from the parameters file
 	while(fgets(str,MAXLEN,fp) != NULL) {
 		
-		// skip comment lines in parameters file
-		if (str[0] == '#')
+		// skip comment lines and blank lines in parameters file
+		if (str[0] == '#' || str[0] == '\n')
 			continue;
 
-		printf("\n");
+		if ( debug > 0) printf("\n");
 		if ( debug > 0) printf("parameters-> %s", str);
 
 		// get source image file name
@@ -118,6 +118,8 @@ int main (int argc, char** argv)
 		{
 			// struct holds ROI options
 			struct ROI ROI_parameters;
+
+			strcpy(ROI_parameters.inputImageName, infile);
 
 			//reset tgt
 			// tgt.deleteImage();
@@ -650,6 +652,30 @@ int main (int argc, char** argv)
 				if (debug == 1) printf("band-pass in (color?): (%s)\n", isColor?"true":"false");
 
 				utility::dft_filter(src, tgt, isColor, ROI_parameters);
+			}
+
+			//  UNSHARP MASK ======================================================================================
+			else if (strncasecmp(function_name,"unsharp_mask",MAXLEN)==0) 
+	        {	
+				//set all options to zeros
+				ROI_init_options(ROI_parameters);
+				
+				pch = strtok(NULL, " ");
+				ROI_parameters.filter_radius = atof(pch);
+				pch = strtok(NULL, " ");
+				ROI_parameters.unsharp_mask_amount = atof(pch);
+				
+				
+				bool isColor = false;
+
+				// check input -- if color image, set the flag
+				if (strstr(infile, ".ppm") != NULL) 
+				{	/* PPM Color Image */
+					isColor = true;
+				}
+
+				if (debug == 1) printf("function:\tunsharp_mask\tradius:\t%f\tamount:\t%f", ROI_parameters.filter_radius, ROI_parameters.unsharp_mask_amount);
+				utility::unsharp_mask(src, tgt, isColor, ROI_parameters);
 			}
 
 			// END OF FUNCTION SELECTION =================================================
